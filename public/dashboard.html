@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="shell wide">
+
+  <div class="topbar">
+    <h1 class="wordmark">Ledger</h1>
+    <div class="topbar-actions">
+      <button class="ghost small" id="logout-btn">Sign out</button>
+    </div>
+  </div>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+    <button class="tab-btn" data-tab="clients">Clients</button>
+    <button class="tab-btn" data-tab="tasks">Tasks</button>
+    <button class="tab-btn" data-tab="status">Status</button>
+  </nav>
+
+  <!-- ═══════════════════ DASHBOARD TAB ═══════════════════ -->
+  <section class="tab-panel" id="tab-dashboard">
+
+    <div class="toolbar">
+      <div class="date-range">
+        <label class="inline-label">From <input type="date" id="dash-from"></label>
+        <label class="inline-label">To <input type="date" id="dash-to"></label>
+      </div>
+      <div class="chip-group" id="dash-quick-range">
+        <button class="chip" data-range="7">Last 7d</button>
+        <button class="chip" data-range="30">Last 30d</button>
+        <button class="chip" data-range="month">This month</button>
+        <button class="chip" data-range="all">All time</button>
+      </div>
+      <div class="spacer"></div>
+    </div>
+
+    <div class="stat-strip" id="dash-stats">
+      <div class="stat"><div class="value" id="dstat-clients">—</div><div class="label">Total clients</div></div>
+      <div class="stat"><div class="value" id="dstat-work">—</div><div class="label">Work in range</div></div>
+      <div class="stat"><div class="value" id="dstat-pending">—</div><div class="label">Pending</div></div>
+      <div class="stat"><div class="value" id="dstat-done">—</div><div class="label">Done</div></div>
+      <div class="stat"><div class="value" id="dstat-overdue">—</div><div class="label">Overdue</div></div>
+    </div>
+
+    <div class="panel">
+      <h3>Work in range <span class="ink-faint" id="dash-work-count"></span></h3>
+      <div class="simple-table" id="dash-work-body"><div class="loading">Loading…</div></div>
+    </div>
+
+  </section>
+
+  <!-- ═══════════════════ CLIENTS TAB ═══════════════════ -->
+  <section class="tab-panel" id="tab-clients" hidden>
+
+    <div class="toolbar">
+      <input type="search" id="c-search" placeholder="Search name, business, number…">
+      <select id="c-filter-type">
+        <option value="">All status</option>
+        <option value="Warm">Warm</option>
+        <option value="Cold">Cold</option>
+        <option value="Old">Old</option>
+        <option value="New">New</option>
+      </select>
+      <div class="spacer"></div>
+      <button class="primary" id="c-add-btn">+ New client</button>
+    </div>
+
+    <div class="card-list" id="clients-list"><div class="loading">Loading clients…</div></div>
+
+  </section>
+
+  <!-- ═══════════════════ TASKS TAB ═══════════════════ -->
+  <section class="tab-panel" id="tab-tasks" hidden>
+
+    <div class="toolbar">
+      <select id="t-filter-client"><option value="">All clients</option></select>
+      <select id="t-filter-status">
+        <option value="">All status</option>
+        <option value="Pending">Pending</option>
+        <option value="Done">Done</option>
+      </select>
+      <div class="date-range">
+        <label class="inline-label">Due from <input type="date" id="t-from"></label>
+        <label class="inline-label">to <input type="date" id="t-to"></label>
+      </div>
+      <div class="spacer"></div>
+      <button class="primary" id="t-add-btn">+ New task</button>
+    </div>
+
+    <div class="ledger" id="tasks-table">
+      <div class="ledger-row head task-grid">
+        <div>Client</div><div>Task</div><div>Due date</div><div>Status</div><div></div>
+      </div>
+      <div id="tasks-body"><div class="loading">Loading tasks…</div></div>
+    </div>
+
+  </section>
+
+  <!-- ═══════════════════ STATUS TAB ═══════════════════ -->
+  <section class="tab-panel" id="tab-status" hidden>
+
+    <div class="toolbar">
+      <select id="s-filter-client"><option value="">All clients</option></select>
+      <select id="s-filter-work">
+        <option value="">All work status</option>
+        <option value="ontrack">On track (no overdue)</option>
+        <option value="overdue">Has overdue</option>
+        <option value="clear">All done / no open tasks</option>
+      </select>
+      <select id="s-filter-payment">
+        <option value="">All payment status</option>
+        <option value="Paid">Paid</option>
+        <option value="Pending">Pending</option>
+        <option value="Overdue">Overdue</option>
+      </select>
+      <div class="spacer"></div>
+    </div>
+
+    <div class="ledger" id="status-table">
+      <div class="ledger-row head status-grid">
+        <div>Client</div><div>Work status</div><div>Payment status</div><div>Notes</div><div></div>
+      </div>
+      <div id="status-body"><div class="loading">Loading…</div></div>
+    </div>
+
+  </section>
+
+</div>
+
+<!-- ═══════════════════ Client detail (reveal) ═══════════════════ -->
+<div class="modal-backdrop" id="detail-modal">
+  <div class="modal wide">
+    <div class="detail-head">
+      <h2 id="detail-name">Client</h2>
+      <div class="topbar-actions">
+        <button class="ghost small" id="detail-edit-btn">Edit</button>
+        <button class="danger small" id="detail-delete-btn">Delete</button>
+        <button class="ghost small" id="detail-close-btn">&times; Close</button>
+      </div>
+    </div>
+
+    <div class="detail-grid">
+      <div>
+        <div class="panel">
+          <h3>Full detail</h3>
+          <div id="detail-info-body"><div class="loading">Loading…</div></div>
+        </div>
+        <div class="panel">
+          <h3>Activity history</h3>
+          <div class="timeline" id="detail-history-body"><div class="loading">Loading…</div></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel">
+          <h3>Work status</h3>
+          <div class="toolbar" style="margin-bottom:10px;">
+            <div class="date-range">
+              <label class="inline-label">From <input type="date" id="detail-t-from"></label>
+              <label class="inline-label">To <input type="date" id="detail-t-to"></label>
+            </div>
+          </div>
+          <div id="detail-tasks-body"><div class="loading">Loading…</div></div>
+          <div class="inline-add">
+            <input id="detail-new-task-desc" placeholder="New task…">
+            <input id="detail-new-task-due" type="date" style="max-width:160px;">
+            <button class="primary" id="detail-add-task-btn">Add</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Payments</h3>
+          <div id="detail-payments-body"><div class="loading">Loading…</div></div>
+          <div class="inline-add">
+            <input id="detail-new-payment-amount" type="number" placeholder="Amount" style="max-width:110px;">
+            <select id="detail-new-payment-status" style="max-width:120px;">
+              <option>Paid</option><option>Pending</option><option>Overdue</option>
+            </select>
+            <input id="detail-new-payment-notes" placeholder="Notes (optional)">
+            <button class="primary" id="detail-add-payment-btn">Log</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ Add / Edit client modal ═══════════════════ -->
+<div class="modal-backdrop" id="client-modal">
+  <div class="modal">
+    <h2 id="modal-title">New client</h2>
+    <form id="client-form">
+      <input type="hidden" id="f-id">
+      <div class="modal-grid">
+        <div class="field"><label>Name</label><input id="f-name" required></div>
+        <div class="field"><label>Number</label><input id="f-number"></div>
+        <div class="field"><label>Country</label><input id="f-country"></div>
+        <div class="field"><label>Platform</label><input id="f-platform" placeholder="Whatsapp"></div>
+        <div class="field">
+          <label>Status</label>
+          <select id="f-type">
+            <option>Warm</option><option>Cold</option><option>Old</option><option>New</option>
+          </select>
+        </div>
+        <div class="field"><label>Chance (%)</label><input id="f-chance" type="number" min="0" max="100"></div>
+        <div class="field"><label>Service</label><input id="f-service" placeholder="SMM"></div>
+        <div class="field"><label>Business</label><input id="f-business" placeholder="Dental Clinic"></div>
+        <div class="field"><label>Payment status</label>
+          <select id="f-payment-status"><option>Pending</option><option>Paid</option><option>Overdue</option></select>
+        </div>
+        <div class="field"><label>Next action</label><input id="f-action" placeholder="Follow up for meeting"></div>
+        <div class="field" style="grid-column: 1 / -1;">
+          <label>Notes</label>
+          <textarea id="f-notes" rows="3" placeholder="Anything worth remembering about this client…"></textarea>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="ghost" id="modal-cancel">Cancel</button>
+        <button type="submit" class="primary" id="modal-save">Save client</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══════════════════ Add task modal (Tasks tab) ═══════════════════ -->
+<div class="modal-backdrop" id="task-modal">
+  <div class="modal">
+    <h2>New task</h2>
+    <form id="task-form">
+      <div class="field"><label>Client</label><select id="tf-client" required></select></div>
+      <div class="field"><label>Task</label><input id="tf-desc" required></div>
+      <div class="field"><label>Due date</label><input id="tf-due" type="date"></div>
+      <div class="field"><label>Status</label>
+        <select id="tf-status"><option>Pending</option><option>Done</option></select>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="ghost" id="task-modal-cancel">Cancel</button>
+        <button type="submit" class="primary">Add task</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+</body>
+</html>
