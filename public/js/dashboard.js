@@ -156,7 +156,7 @@ function escapeHtml(str) {
 
 // ─── Wire up events ────────────────────────────────────────────────────
 
-document.getElementById('add-btn').addEventListener('click', openCreate);
+document.getElementById('c-add-btn').addEventListener('click', openCreate);
 document.getElementById('modal-cancel').addEventListener('click', closeModal);
 document.getElementById('client-modal').addEventListener('click', (e) => {
   if (e.target.id === 'client-modal') closeModal();
