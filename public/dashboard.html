@@ -21,6 +21,7 @@
     <button class="tab-btn" data-tab="clients">Clients</button>
     <button class="tab-btn" data-tab="tasks">Tasks</button>
     <button class="tab-btn" data-tab="status">Status</button>
+    <button class="tab-btn" data-tab="earnings">Earnings</button>
   </nav>
 
   <!-- ═══════════════════ DASHBOARD TAB ═══════════════════ -->
@@ -128,6 +129,51 @@
         <div>Client</div><div>Work status</div><div>Payment status</div><div>Notes</div><div></div>
       </div>
       <div id="status-body"><div class="loading">Loading…</div></div>
+    </div>
+
+  </section>
+
+  <!-- ═══════════════════ EARNINGS TAB ═══════════════════ -->
+  <section class="tab-panel" id="tab-earnings" hidden>
+
+    <div class="toolbar">
+      <div class="date-range">
+        <label class="inline-label">From <input type="date" id="e-from"></label>
+        <label class="inline-label">To <input type="date" id="e-to"></label>
+      </div>
+      <div class="chip-group" id="e-quick-range">
+        <button class="chip" data-range="7">Last 7d</button>
+        <button class="chip" data-range="30">Last 30d</button>
+        <button class="chip" data-range="month">This month</button>
+        <button class="chip active" data-range="all">All time</button>
+      </div>
+      <select id="e-filter-client"><option value="">All clients</option></select>
+      <select id="e-filter-status">
+        <option value="">All payment status</option>
+        <option value="Paid">Paid</option>
+        <option value="Pending">Pending</option>
+        <option value="Overdue">Overdue</option>
+      </select>
+      <div class="spacer"></div>
+    </div>
+
+    <div class="stat-strip">
+      <div class="stat"><div class="value" id="estat-total">—</div><div class="label">Total earned (Paid)</div></div>
+      <div class="stat"><div class="value" id="estat-pending">—</div><div class="label">Pending</div></div>
+      <div class="stat"><div class="value" id="estat-overdue">—</div><div class="label">Overdue</div></div>
+      <div class="stat"><div class="value" id="estat-count">—</div><div class="label">Payments in range</div></div>
+    </div>
+
+    <div class="panel">
+      <h3>Earnings by client</h3>
+      <div id="earnings-by-client-body"><div class="loading">Loading…</div></div>
+    </div>
+
+    <div class="ledger" id="earnings-table">
+      <div class="ledger-row head earnings-grid">
+        <div>Client</div><div>Amount</div><div>Date</div><div>Status</div><div>Notes</div><div></div>
+      </div>
+      <div id="earnings-body"><div class="loading">Loading…</div></div>
     </div>
 
   </section>

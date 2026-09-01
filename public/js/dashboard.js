@@ -75,6 +75,7 @@ async function loadAll() {
   renderClients();
   renderTasks();
   renderStatus();
+  renderEarnings();
 }
 
 async function refreshAfterChange() {
@@ -84,6 +85,7 @@ async function refreshAfterChange() {
   renderClients();
   renderTasks();
   renderStatus();
+  renderEarnings();
   if (currentDetailId) {
     const c = allClients.find(x => String(x.UniqueID) === String(currentDetailId));
     if (c) renderDetailInfo(c);
@@ -342,7 +344,7 @@ function populateClientSelects() {
     console.warn(`${allClients.length - usable.length} client(s) have no UniqueID and were left out of the client dropdowns — check the "UniqueID" header cell in your Clients sheet.`);
   }
   const sorted = usable.slice().sort((a, b) => (a.Name || '').localeCompare(b.Name || ''));
-  ['t-filter-client', 's-filter-client'].forEach(id => {
+  ['t-filter-client', 's-filter-client', 'e-filter-client'].forEach(id => {
     const sel = document.getElementById(id);
     const current = sel.value;
     sel.innerHTML = '<option value="">All clients</option>' +
@@ -521,6 +523,132 @@ document.getElementById('s-search').addEventListener('input', renderStatus);
 document.getElementById('s-filter-client').addEventListener('change', renderStatus);
 document.getElementById('s-filter-work').addEventListener('change', renderStatus);
 document.getElementById('s-filter-payment').addEventListener('change', renderStatus);
+
+// ─── Earnings tab ────────────────────────────────────────────────────────
+
+function formatMoney(n) {
+  const num = Number(n) || 0;
+  return '₹' + num.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+}
+
+function getEarningsRange() {
+  const fromVal = document.getElementById('e-from').value;
+  const toVal = document.getElementById('e-to').value;
+  return {
+    from: fromVal ? new Date(fromVal) : null,
+    to: toVal ? new Date(toVal + 'T23:59:59') : null,
+  };
+}
+
+function setEarningsQuickRange(range) {
+  const today = new Date();
+  let from = null, to = null;
+  if (range === '7') { to = today; from = new Date(today); from.setDate(from.getDate() - 6); }
+  else if (range === '30') { to = today; from = new Date(today); from.setDate(from.getDate() - 29); }
+  else if (range === 'month') { from = new Date(today.getFullYear(), today.getMonth(), 1); to = today; }
+  // 'all' -> leave from/to empty
+
+  document.getElementById('e-from').value = from ? toInputDate(from) : '';
+  document.getElementById('e-to').value = to ? toInputDate(to) : '';
+  renderEarnings();
+}
+
+document.getElementById('e-quick-range').addEventListener('click', (e) => {
+  const btn = e.target.closest('.chip');
+  if (!btn) return;
+  document.querySelectorAll('#e-quick-range .chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  setEarningsQuickRange(btn.dataset.range);
+});
+document.getElementById('e-from').addEventListener('change', () => {
+  document.querySelectorAll('#e-quick-range .chip').forEach(c => c.classList.remove('active'));
+  renderEarnings();
+});
+document.getElementById('e-to').addEventListener('change', () => {
+  document.querySelectorAll('#e-quick-range .chip').forEach(c => c.classList.remove('active'));
+  renderEarnings();
+});
+document.getElementById('e-filter-client').addEventListener('change', renderEarnings);
+document.getElementById('e-filter-status').addEventListener('change', renderEarnings);
+
+function getFilteredEarnings() {
+  const { from, to } = getEarningsRange();
+  const clientFilter = document.getElementById('e-filter-client').value;
+  const statusFilter = document.getElementById('e-filter-status').value;
+
+  return allPayments.filter(p => {
+    if ((from || to) && !inRange(p.Date, from, to)) return false;
+    if (clientFilter && String(p.ClientID) !== String(clientFilter)) return false;
+    if (statusFilter && (p.Status || 'Pending') !== statusFilter) return false;
+    return true;
+  });
+}
+
+function renderEarnings() {
+  const list = getFilteredEarnings();
+
+  const paid = list.filter(p => (p.Status || '').toLowerCase() === 'paid');
+  const pending = list.filter(p => (p.Status || '').toLowerCase() === 'pending');
+  const overdue = list.filter(p => (p.Status || '').toLowerCase() === 'overdue');
+
+  const sum = arr => arr.reduce((total, p) => total + (Number(p.Amount) || 0), 0);
+  const totalPaid = sum(paid);
+  const totalPending = sum(pending);
+  const totalOverdue = sum(overdue);
+
+  document.getElementById('estat-total').textContent = formatMoney(totalPaid);
+  document.getElementById('estat-pending').textContent = formatMoney(totalPending);
+  document.getElementById('estat-overdue').textContent = formatMoney(totalOverdue);
+  document.getElementById('estat-count').textContent = list.length;
+
+  // ── Earnings by client (Paid only, so this reads as "who has actually paid") ──
+  const byClientBody = document.getElementById('earnings-by-client-body');
+  const byClient = new Map();
+  paid.forEach(p => {
+    const key = String(p.ClientID);
+    byClient.set(key, (byClient.get(key) || 0) + (Number(p.Amount) || 0));
+  });
+  const breakdown = [...byClient.entries()]
+    .map(([id, amount]) => ({ id, amount, name: clientName(id) || '(unknown client)' }))
+    .sort((a, b) => b.amount - a.amount);
+
+  if (!breakdown.length) {
+    byClientBody.innerHTML = '<p style="color:var(--ink-faint); font-size:13.5px;">No paid earnings in range.</p>';
+  } else {
+    const max = breakdown[0].amount || 1;
+    byClientBody.innerHTML = breakdown.map(b => `
+      <div class="breakdown-row">
+        <div class="name" onclick="openDetail('${b.id}')">${escapeHtml(b.name)}</div>
+        <div class="bar"><span style="width:${Math.max(4, (b.amount / max) * 100)}%"></span></div>
+        <div class="amount">${formatMoney(b.amount)}</div>
+      </div>`).join('');
+  }
+
+  // ── Ledger of individual payments ──
+  const body = document.getElementById('earnings-body');
+  if (!list.length) {
+    body.innerHTML = `<div class="empty-state"><h3>No payments in range</h3><p>Try widening the date range or clearing a filter.</p></div>`;
+    return;
+  }
+  const sorted = list.slice().sort((a, b) => new Date(b.Date || 0) - new Date(a.Date || 0));
+  body.innerHTML = sorted.map(p => `
+    <div class="ledger-row earnings-grid">
+      <div class="name" onclick="openDetail('${p.ClientID}')">${escapeHtml(p.ClientName || clientName(p.ClientID))}</div>
+      <div class="mono">${formatMoney(p.Amount)}</div>
+      <div class="mono">${p.Date ? escapeHtml(formatDate(p.Date)) : '—'}</div>
+      <div><span class="tag ${(p.Status || '').toLowerCase()}">${escapeHtml(p.Status || 'Pending')}</span></div>
+      <div class="sub">${escapeHtml(p.Notes || '')}</div>
+      <div class="row-actions">
+        <button class="danger small" onclick="deleteEarningsPayment('${p.PaymentID}')">&times;</button>
+      </div>
+    </div>`).join('');
+}
+
+async function deleteEarningsPayment(paymentId) {
+  if (!confirm('Delete this payment record?')) return;
+  await fetch(`/api/payments/${encodeURIComponent(paymentId)}`, { method: 'DELETE' });
+  await refreshAfterChange();
+}
 
 // ─── Client detail modal ─────────────────────────────────────────────────
 

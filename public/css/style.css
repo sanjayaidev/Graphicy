@@ -635,6 +635,32 @@ label {
   grid-template-columns: 1.5fr 1fr 1fr 1fr 90px !important;
 }
 
+/* ─── Earnings grid header ──────────────────────────────────── */
+
+.earnings-grid {
+  grid-template-columns: 1.4fr 0.9fr 0.9fr 0.8fr 1.3fr 70px !important;
+}
+
+/* ─── Earnings-by-client breakdown rows ─────────────────────── */
+
+.breakdown-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.breakdown-row:last-child { border-bottom: none; }
+.breakdown-row .name { flex: 1; font-family: 'Newsreader'; font-size: 15px; cursor: pointer; }
+.breakdown-row .name:hover { text-decoration: underline; color: var(--accent); }
+.breakdown-row .amount { font-family: 'IBM Plex Mono'; font-weight: 600; color: var(--accent); }
+.breakdown-row .bar {
+  width: 120px; height: 6px; background: var(--line-soft); border-radius: 3px; overflow: hidden;
+}
+.breakdown-row .bar span {
+  display: block; height: 100%; background: var(--warm); border-radius: 3px;
+}
+
 /* ─── Detail head (modal header) ────────────────────────────── */
 
 .detail-head {
