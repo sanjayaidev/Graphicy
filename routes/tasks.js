@@ -3,27 +3,29 @@ const express = require('express');
 const router = express.Router();
 const { callAppsScript } = require('../lib/appsScript');
 
-// GET /api/tasks — every task across every client, with ClientID/ClientName
-// attached so the Tasks/Dashboard/Status tabs can filter and display them
-// without needing a client-scoped page. The Apps Script backend only exposes
-// tasks per-client (getTasks?clientId=...), so this aggregates that here
-// rather than requiring changes to the Apps Script (Code.gs) side.
+// GET /api/tasks — every task across every client, with ClientName attached
+// so the Tasks/Dashboard/Status tabs can display them without a second
+// lookup. Uses each task's own stored ClientID (never overwritten) and
+// just joins in the client's Name for display.
 router.get('/', async (req, res, next) => {
   try {
-    const clients = await callAppsScript('getClients');
-    if (!Array.isArray(clients)) return res.json([]);
+    const [clients, tasks] = await Promise.all([
+      callAppsScript('getClients'),
+      callAppsScript('getTasks'),
+    ]);
 
-    const perClient = await Promise.all(clients.map(async (c) => {
-      try {
-        const tasks = await callAppsScript('getTasks', { clientId: c.UniqueID });
-        if (!Array.isArray(tasks)) return [];
-        return tasks.map(t => ({ ...t, ClientID: c.UniqueID, ClientName: c.Name }));
-      } catch (err) {
-        return []; // don't let one bad client blow up the whole list
-      }
+    const clientNameById = new Map(
+      (Array.isArray(clients) ? clients : [])
+        .filter(c => c.UniqueID !== undefined && c.UniqueID !== null && c.UniqueID !== '')
+        .map(c => [String(c.UniqueID), c.Name])
+    );
+
+    const enriched = (Array.isArray(tasks) ? tasks : []).map(t => ({
+      ...t,
+      ClientName: clientNameById.get(String(t.ClientID)) || '',
     }));
 
-    res.json(perClient.flat());
+    res.json(enriched);
   } catch (err) { next(err); }
 });
 
