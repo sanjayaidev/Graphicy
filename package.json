@@ -1,7 +1,7 @@
 {
   "name": "clientpm-solo",
   "version": "1.0.0",
-  "description": "Solo-user client management app backed by Google Sheets via Apps Script",
+  "description": "Solo-user client management app backed by Supabase (Postgres)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -11,6 +11,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
     "cookie-parser": "^1.4.6",
     "dotenv": "^16.4.5",
     "express": "^4.19.2"
