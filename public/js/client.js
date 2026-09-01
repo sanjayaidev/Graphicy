@@ -35,6 +35,7 @@ function renderClient() {
     ['Business', client.Business],
     ['Next action', client.Action],
     ['Payment status', client.PaymentStatus],
+    ['Notes', client.Notes],
   ];
   document.getElementById('info-body').innerHTML = rows
     .filter(([, v]) => v !== undefined && v !== '')
@@ -191,7 +192,9 @@ document.getElementById('edit-client-btn').addEventListener('click', () => {
   document.getElementById('f-chance').value = client.Chance || '';
   document.getElementById('f-service').value = client.Service || '';
   document.getElementById('f-business').value = client.Business || '';
+  document.getElementById('f-payment-status').value = client.PaymentStatus || 'Pending';
   document.getElementById('f-action').value = client.Action || '';
+  document.getElementById('f-notes').value = client.Notes || '';
   document.getElementById('client-modal').classList.add('open');
 });
 
@@ -213,7 +216,9 @@ document.getElementById('client-form').addEventListener('submit', async (e) => {
     Chance: document.getElementById('f-chance').value,
     Service: document.getElementById('f-service').value.trim(),
     Business: document.getElementById('f-business').value.trim(),
+    PaymentStatus: document.getElementById('f-payment-status').value,
     Action: document.getElementById('f-action').value.trim(),
+    Notes: document.getElementById('f-notes').value.trim(),
   };
   await fetch(`/api/clients/${encodeURIComponent(clientId)}`, {
     method: 'PUT',
