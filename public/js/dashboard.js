@@ -37,7 +37,7 @@ function inRange(dateStr, from, to) {
 }
 
 function clientName(id) {
-  const c = allClients.find(x => x.UniqueID === id);
+  const c = allClients.find(x => String(x.UniqueID) === String(id));
   return c ? c.Name : '';
 }
 
@@ -85,7 +85,7 @@ async function refreshAfterChange() {
   renderTasks();
   renderStatus();
   if (currentDetailId) {
-    const c = allClients.find(x => x.UniqueID === currentDetailId);
+    const c = allClients.find(x => String(x.UniqueID) === String(currentDetailId));
     if (c) renderDetailInfo(c);
     renderDetailTasks();
     renderDetailPayments();
@@ -218,6 +218,7 @@ function clientCardHtml(c) {
           <span class="tag ${paymentClass}">${escapeHtml(c.PaymentStatus || 'Pending')}</span>
         </div>
       </div>
+      ${c.Action ? `<div class="sub" style="margin-top:10px;"><strong>Next action:</strong> ${escapeHtml(c.Action)}</div>` : ''}
       <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
         <div class="chance-meter">
           <div class="bar"><span style="width:${chance}%"></span></div>
@@ -261,7 +262,7 @@ function openCreate() {
 }
 
 function openEdit(id) {
-  const c = allClients.find(x => x.UniqueID === id);
+  const c = allClients.find(x => String(x.UniqueID) === String(id));
   if (!c) return;
   editingId = id;
   document.getElementById('modal-title').textContent = 'Edit client';
@@ -518,8 +519,13 @@ async function openDetail(id) {
   currentDetailId = id;
   document.getElementById('detail-modal').classList.add('open');
 
-  const c = allClients.find(x => x.UniqueID === id);
-  if (c) renderDetailInfo(c);
+  const c = allClients.find(x => String(x.UniqueID) === String(id));
+  if (c) {
+    renderDetailInfo(c);
+  } else {
+    document.getElementById('detail-info-body').innerHTML =
+      '<p style="color:var(--danger); font-size:13.5px;">Could not find this client in the loaded list. Try closing and reopening.</p>';
+  }
 
   document.getElementById('detail-t-from').value = '';
   document.getElementById('detail-t-to').value = '';
