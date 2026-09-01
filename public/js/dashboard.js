@@ -337,7 +337,11 @@ document.getElementById('client-form').addEventListener('submit', async (e) => {
 // ─── Tasks tab ───────────────────────────────────────────────────────────
 
 function populateClientSelects() {
-  const sorted = allClients.slice().sort((a, b) => (a.Name || '').localeCompare(b.Name || ''));
+  const usable = allClients.filter(c => c.UniqueID !== undefined && c.UniqueID !== null && c.UniqueID !== '');
+  if (usable.length !== allClients.length) {
+    console.warn(`${allClients.length - usable.length} client(s) have no UniqueID and were left out of the client dropdowns — check the "UniqueID" header cell in your Clients sheet.`);
+  }
+  const sorted = usable.slice().sort((a, b) => (a.Name || '').localeCompare(b.Name || ''));
   ['t-filter-client', 's-filter-client'].forEach(id => {
     const sel = document.getElementById(id);
     const current = sel.value;
@@ -362,7 +366,7 @@ function getFilteredTasks() {
   const to = toVal ? new Date(toVal + 'T23:59:59') : null;
 
   return allTasks.filter(t => {
-    if (clientFilter && t.ClientID !== clientFilter) return false;
+    if (clientFilter && String(t.ClientID) !== String(clientFilter)) return false;
     if (statusFilter && (t.Status || 'Pending') !== statusFilter) return false;
     if ((from || to) && !inRange(t.DueDate, from, to)) return false;
     return true;
@@ -572,7 +576,7 @@ function renderDetailTasks() {
   const from = fromVal ? new Date(fromVal) : null;
   const to = toVal ? new Date(toVal + 'T23:59:59') : null;
 
-  let tasks = allTasks.filter(t => t.ClientID === currentDetailId);
+  let tasks = allTasks.filter(t => String(t.ClientID) === String(currentDetailId));
   if (from || to) tasks = tasks.filter(t => inRange(t.DueDate, from, to));
   tasks = tasks.slice().sort((a, b) => new Date(a.DueDate || 0) - new Date(b.DueDate || 0));
 
@@ -628,7 +632,7 @@ document.getElementById('detail-add-task-btn').addEventListener('click', async (
 
 function renderDetailPayments() {
   if (!currentDetailId) return;
-  const payments = allPayments.filter(p => p.ClientID === currentDetailId);
+  const payments = allPayments.filter(p => String(p.ClientID) === String(currentDetailId));
   const body = document.getElementById('detail-payments-body');
   if (!payments.length) {
     body.innerHTML = '<p style="color:var(--ink-faint); font-size:13.5px;">No payments logged yet.</p>';
