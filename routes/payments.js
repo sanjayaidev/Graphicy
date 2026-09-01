@@ -6,22 +6,28 @@ const { callAppsScript } = require('../lib/appsScript');
 // GET /api/payments — every payment across every client, with ClientID/
 // ClientName attached, for the Status tab and dashboards. Aggregated the
 // same way as GET /api/tasks (see routes/tasks.js for why).
+// GET /api/payments — every payment across every client, with ClientName
+// attached, for the Status tab and dashboards. Uses each payment's own
+// stored ClientID (never overwritten) and joins in the client's Name.
 router.get('/', async (req, res, next) => {
   try {
-    const clients = await callAppsScript('getClients');
-    if (!Array.isArray(clients)) return res.json([]);
+    const [clients, payments] = await Promise.all([
+      callAppsScript('getClients'),
+      callAppsScript('getPayments'),
+    ]);
 
-    const perClient = await Promise.all(clients.map(async (c) => {
-      try {
-        const payments = await callAppsScript('getPayments', { clientId: c.UniqueID });
-        if (!Array.isArray(payments)) return [];
-        return payments.map(p => ({ ...p, ClientID: c.UniqueID, ClientName: c.Name }));
-      } catch (err) {
-        return [];
-      }
+    const clientNameById = new Map(
+      (Array.isArray(clients) ? clients : [])
+        .filter(c => c.UniqueID !== undefined && c.UniqueID !== null && c.UniqueID !== '')
+        .map(c => [String(c.UniqueID), c.Name])
+    );
+
+    const enriched = (Array.isArray(payments) ? payments : []).map(p => ({
+      ...p,
+      ClientName: clientNameById.get(String(p.ClientID)) || '',
     }));
 
-    res.json(perClient.flat());
+    res.json(enriched);
   } catch (err) { next(err); }
 });
 
