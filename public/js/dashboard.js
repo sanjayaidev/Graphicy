@@ -465,14 +465,19 @@ function computeClientWorkStatus(clientId) {
 }
 
 function getFilteredStatusRows() {
+  const search = document.getElementById('s-search').value.toLowerCase().trim();
   const clientFilter = document.getElementById('s-filter-client').value;
   const workFilter = document.getElementById('s-filter-work').value;
   const paymentFilter = document.getElementById('s-filter-payment').value;
 
   return allClients.filter(c => {
-    if (clientFilter && c.UniqueID !== clientFilter) return false;
+    if (clientFilter && String(c.UniqueID) !== String(clientFilter)) return false;
     if (workFilter && computeClientWorkStatus(c.UniqueID) !== workFilter) return false;
     if (paymentFilter && (c.PaymentStatus || 'Pending') !== paymentFilter) return false;
+    if (search) {
+      const hay = [c.Name, c.Business, c.Service, c.Number, c.Country].join(' ').toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
     return true;
   });
 }
@@ -491,9 +496,13 @@ function renderStatus() {
   body.innerHTML = list.map(c => {
     const work = computeClientWorkStatus(c.UniqueID);
     const paymentClass = (c.PaymentStatus || 'pending').toLowerCase();
+    const nameText = (c.Name && String(c.Name).trim()) || '(no name)';
+    if (nameText === '(no name)') {
+      console.warn('Client is missing a Name value — check the "Name" header cell in your Clients sheet:', c);
+    }
     return `
       <div class="ledger-row status-grid">
-        <div class="name" onclick="openDetail('${c.UniqueID}')">${escapeHtml(c.Name)}</div>
+        <div class="name" onclick="openDetail('${c.UniqueID}')">${escapeHtml(nameText)}</div>
         <div><span class="tag ${workClass[work]}">${workLabels[work]}</span></div>
         <div><span class="tag ${paymentClass}">${escapeHtml(c.PaymentStatus || 'Pending')}</span></div>
         <div class="sub">${escapeHtml(c.Action || '')}</div>
@@ -504,6 +513,7 @@ function renderStatus() {
   }).join('');
 }
 
+document.getElementById('s-search').addEventListener('input', renderStatus);
 document.getElementById('s-filter-client').addEventListener('change', renderStatus);
 document.getElementById('s-filter-work').addEventListener('change', renderStatus);
 document.getElementById('s-filter-payment').addEventListener('change', renderStatus);
