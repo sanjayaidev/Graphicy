@@ -1,0 +1,166 @@
+diff --git a/public/dashboard.html b/public/dashboard.html
+index 9cd6705..7f88add 100644
+--- a/public/dashboard.html
++++ b/public/dashboard.html
+@@ -173,7 +173,7 @@
+       <div class="stat"><div class="value" id="estat-total">—</div><div class="label">Total earned (Paid)</div></div>
+       <div class="stat"><div class="value" id="estat-pending">—</div><div class="label">Pending</div></div>
+       <div class="stat"><div class="value" id="estat-overdue">—</div><div class="label">Overdue</div></div>
+-      <div class="stat"><div class="value" id="estat-count">—</div><div class="label">Payments in range</div></div>
++      <div class="stat"><div class="value" id="estat-count">—</div><div class="label">Earning records in range</div></div>
+     </div>
+ 
+     <div class="panel">
+diff --git a/public/js/dashboard.js b/public/js/dashboard.js
+index 64bac6b..1d42198 100644
+--- a/public/js/dashboard.js
++++ b/public/js/dashboard.js
+@@ -695,6 +695,17 @@ async function deleteBulkPayment(paymentId) {
+ }
+ 
+ // ─── Earnings tab ────────────────────────────────────────────────────────
++// Unified earnings system: a client's earning records come from ONE of two
++// sources depending on how that client is billed (client.BulkBilling) —
++// never both, so nothing is double-counted.
++//   - Bulk-billing clients: each ga_payments row logged against them (lump
++//     sum / flat fee payments, not tied to a task).
++//   - Normal clients: each of their tasks, using that task's own Amount +
++//     PaymentStatus (set on the Tasks tab / client detail).
++// Both are normalized into the same {source, clientId, amount, date,
++// status, notes} shape below so the rest of the tab (range/status filters,
++// totals, the by-client breakdown, and the ledger) doesn't need to know or
++// care which kind of record it's looking at.
+ 
+ function formatMoney(n) {
+   const num = Number(n) || 0;
+@@ -741,15 +752,56 @@ document.getElementById('e-to').addEventListener('change', () => {
+ document.getElementById('e-filter-client').addEventListener('change', renderEarnings);
+ document.getElementById('e-filter-status').addEventListener('change', renderEarnings);
+ 
++// Builds the unified list of earning records across every client, picking
++// the record source per-client based on BulkBilling — see block comment
++// above. Each record: { source, id, clientId, clientName, amount, date,
++// status, notes }.
++function getUnifiedEarningsRecords() {
++  const bulkClientIds = new Set(
++    allClients.filter(c => c.BulkBilling).map(c => String(c.UniqueID))
++  );
++
++  const paymentRecords = allPayments
++    .filter(p => bulkClientIds.has(String(p.ClientID)))
++    .map(p => ({
++      source: 'payment',
++      id: p.PaymentID,
++      clientId: p.ClientID,
++      clientName: p.ClientName || clientName(p.ClientID),
++      amount: Number(p.Amount) || 0,
++      date: p.Date,
++      status: p.Status || 'Pending',
++      notes: p.Notes || '',
++    }));
++
++  const taskRecords = allTasks
++    .filter(t => !bulkClientIds.has(String(t.ClientID)))
++    .map(t => ({
++      source: 'task',
++      id: t.TaskID,
++      clientId: t.ClientID,
++      clientName: t.ClientName || clientName(t.ClientID),
++      amount: Number(t.Amount) || 0,
++      // Tasks don't have a "paid on" date the way payments do — the due
++      // date is the closest proxy, falling back to when the task was
++      // created if no due date was set.
++      date: t.DueDate || t.CreatedAt,
++      status: t.PaymentStatus || 'Pending',
++      notes: t.Description || '',
++    }));
++
++  return [...paymentRecords, ...taskRecords];
++}
++
+ function getFilteredEarnings() {
+   const { from, to } = getEarningsRange();
+   const clientFilter = document.getElementById('e-filter-client').value;
+   const statusFilter = document.getElementById('e-filter-status').value;
+ 
+-  return allPayments.filter(p => {
+-    if ((from || to) && !inRange(p.Date, from, to)) return false;
+-    if (clientFilter && String(p.ClientID) !== String(clientFilter)) return false;
+-    if (statusFilter && (p.Status || 'Pending') !== statusFilter) return false;
++  return getUnifiedEarningsRecords().filter(r => {
++    if ((from || to) && !inRange(r.date, from, to)) return false;
++    if (clientFilter && String(r.clientId) !== String(clientFilter)) return false;
++    if (statusFilter && r.status !== statusFilter) return false;
+     return true;
+   });
+ }
+@@ -757,11 +809,11 @@ function getFilteredEarnings() {
+ function renderEarnings() {
+   const list = getFilteredEarnings();
+ 
+-  const paid = list.filter(p => (p.Status || '').toLowerCase() === 'paid');
+-  const pending = list.filter(p => (p.Status || '').toLowerCase() === 'pending');
+-  const overdue = list.filter(p => (p.Status || '').toLowerCase() === 'overdue');
++  const paid = list.filter(r => (r.status || '').toLowerCase() === 'paid');
++  const pending = list.filter(r => (r.status || '').toLowerCase() === 'pending');
++  const overdue = list.filter(r => (r.status || '').toLowerCase() === 'overdue');
+ 
+-  const sum = arr => arr.reduce((total, p) => total + (Number(p.Amount) || 0), 0);
++  const sum = arr => arr.reduce((total, r) => total + (Number(r.amount) || 0), 0);
+   const totalPaid = sum(paid);
+   const totalPending = sum(pending);
+   const totalOverdue = sum(overdue);
+@@ -772,11 +824,13 @@ function renderEarnings() {
+   document.getElementById('estat-count').textContent = list.length;
+ 
+   // ── Earnings by client (Paid only, so this reads as "who has actually paid") ──
++  // Mixes bulk-payment totals and task totals per client transparently —
++  // each client only ever contributes from its own billing type.
+   const byClientBody = document.getElementById('earnings-by-client-body');
+   const byClient = new Map();
+-  paid.forEach(p => {
+-    const key = String(p.ClientID);
+-    byClient.set(key, (byClient.get(key) || 0) + (Number(p.Amount) || 0));
++  paid.forEach(r => {
++    const key = String(r.clientId);
++    byClient.set(key, (byClient.get(key) || 0) + (Number(r.amount) || 0));
+   });
+   const breakdown = [...byClient.entries()]
+     .map(([id, amount]) => ({ id, amount, name: clientName(id) || '(unknown client)' }))
+@@ -794,22 +848,24 @@ function renderEarnings() {
+       </div>`).join('');
+   }
+ 
+-  // ── Ledger of individual payments ──
++  // ── Ledger of individual earning records (bulk payments + tasks) ──
+   const body = document.getElementById('earnings-body');
+   if (!list.length) {
+-    body.innerHTML = `<div class="empty-state"><h3>No payments in range</h3><p>Try widening the date range or clearing a filter.</p></div>`;
++    body.innerHTML = `<div class="empty-state"><h3>No earnings in range</h3><p>Try widening the date range or clearing a filter.</p></div>`;
+     return;
+   }
+-  const sorted = list.slice().sort((a, b) => new Date(b.Date || 0) - new Date(a.Date || 0));
+-  body.innerHTML = sorted.map(p => `
++  const sorted = list.slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
++  body.innerHTML = sorted.map(r => `
+     <div class="ledger-row earnings-grid">
+-      <div class="name" onclick="openDetail('${p.ClientID}')">${escapeHtml(p.ClientName || clientName(p.ClientID))}</div>
+-      <div class="mono">${formatMoney(p.Amount)}</div>
+-      <div class="mono">${p.Date ? escapeHtml(formatDate(p.Date)) : '—'}</div>
+-      <div><span class="tag ${(p.Status || '').toLowerCase()}">${escapeHtml(p.Status || 'Pending')}</span></div>
+-      <div class="sub">${escapeHtml(p.Notes || '')}</div>
++      <div class="name" onclick="openDetail('${r.clientId}')">${escapeHtml(r.clientName)} <span class="sub">${r.source === 'task' ? '· task' : '· bulk'}</span></div>
++      <div class="mono">${formatMoney(r.amount)}</div>
++      <div class="mono">${r.date ? escapeHtml(formatDate(r.date)) : '—'}</div>
++      <div><span class="tag ${(r.status || '').toLowerCase()}">${escapeHtml(r.status || 'Pending')}</span></div>
++      <div class="sub">${escapeHtml(r.notes || '')}</div>
+       <div class="row-actions">
+-        <button class="danger small" onclick="deleteEarningsPayment('${p.PaymentID}')">&times;</button>
++        ${r.source === 'payment'
++          ? `<button class="danger small" onclick="deleteEarningsPayment('${r.id}')">&times;</button>`
++          : `<button class="ghost small" onclick="openDetail('${r.clientId}')">View</button>`}
+       </div>
+     </div>`).join('');
+ }
+
+ 
