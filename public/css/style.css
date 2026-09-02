@@ -338,6 +338,21 @@ label {
   text-align: right;
 }
 
+.mini-notes {
+  width: 100%;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  background: transparent;
+}
+.mini-notes:hover,
+.mini-notes:focus {
+  border-color: var(--ink-faint);
+}
+
 .chance-meter { display: flex; align-items: center; gap: 8px; }
 .chance-meter .bar {
   width: 48px; height: 5px; background: var(--line-soft); position: relative;

@@ -601,12 +601,32 @@ function renderStatus() {
         <div class="name" onclick="openDetail('${c.UniqueID}')">${escapeHtml(nameText)}</div>
         <div><span class="tag ${workClass[work]}">${workLabels[work]}</span></div>
         <div>${payment.dominant ? `<span class="tag ${paymentClass}">${escapeHtml(payment.label)}</span>` : `<span class="sub">${payment.label}</span>`}</div>
-        <div class="sub">${escapeHtml(c.Action || '')}</div>
+        <div>
+          <input
+            type="text"
+            class="mini-notes"
+            placeholder="Add a note…"
+            value="${escapeHtml(c.Notes || '')}"
+            onchange="setClientNotes('${c.UniqueID}', this.value)"
+          >
+        </div>
         <div class="row-actions">
           <button class="ghost small" onclick="openDetail('${c.UniqueID}')">View</button>
         </div>
       </div>`;
   }).join('');
+}
+
+// Saves a client's Notes straight from the Status tab — no need to open
+// the edit-client modal for a quick note update. Only patches Notes, same
+// as setTaskAmount/setTaskPaymentStatus do for their own single field.
+async function setClientNotes(clientId, notes) {
+  await fetch(`/api/clients/${encodeURIComponent(clientId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ Notes: notes }),
+  });
+  await refreshAfterChange();
 }
 
 document.getElementById('s-search').addEventListener('input', renderStatus);
