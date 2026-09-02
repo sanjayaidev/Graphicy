@@ -34,7 +34,6 @@ function renderClient() {
     ['Service', client.Service],
     ['Business', client.Business],
     ['Next action', client.Action],
-    ['Payment status', client.PaymentStatus],
     ['Notes', client.Notes],
   ];
   document.getElementById('info-body').innerHTML = rows
@@ -60,6 +59,9 @@ async function loadTasks() {
       <input type="checkbox" ${t.Status === 'Done' ? 'checked' : ''} onchange="toggleTask('${t.TaskID}', this.checked)">
       <div class="desc ${t.Status === 'Done' ? 'done' : ''}">${escapeHtml(t.Description)}</div>
       ${t.DueDate ? `<div class="due mono">${escapeHtml(formatDate(t.DueDate))}</div>` : ''}
+      <select class="tag-select ${(t.PaymentStatus || 'pending').toLowerCase()}" onchange="setTaskPaymentStatus('${t.TaskID}', this.value)">
+        ${['Pending', 'Paid', 'Overdue'].map(s => `<option value="${s}" ${s === (t.PaymentStatus || 'Pending') ? 'selected' : ''}>${s}</option>`).join('')}
+      </select>
       <button class="ghost small" onclick="deleteTask('${t.TaskID}')">&times;</button>
     </div>
   `).join('');
@@ -70,6 +72,16 @@ async function toggleTask(taskId, done) {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status: done ? 'Done' : 'Pending' }),
+  });
+  await loadTasks();
+  await loadHistory();
+}
+
+async function setTaskPaymentStatus(taskId, paymentStatus) {
+  await fetch(`/api/tasks/${encodeURIComponent(taskId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ paymentStatus }),
   });
   await loadTasks();
   await loadHistory();
@@ -153,10 +165,11 @@ document.getElementById('add-task-btn').addEventListener('click', async () => {
   const description = document.getElementById('new-task-desc').value.trim();
   if (!description) return;
   const dueDate = document.getElementById('new-task-due').value;
+  const paymentStatus = document.getElementById('new-task-payment-status').value;
   await fetch('/api/tasks', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ clientId, description, dueDate, status: 'Pending' }),
+    body: JSON.stringify({ clientId, description, dueDate, status: 'Pending', paymentStatus }),
   });
   document.getElementById('new-task-desc').value = '';
   document.getElementById('new-task-due').value = '';
@@ -192,7 +205,6 @@ document.getElementById('edit-client-btn').addEventListener('click', () => {
   document.getElementById('f-chance').value = client.Chance || '';
   document.getElementById('f-service').value = client.Service || '';
   document.getElementById('f-business').value = client.Business || '';
-  document.getElementById('f-payment-status').value = client.PaymentStatus || 'Pending';
   document.getElementById('f-action').value = client.Action || '';
   document.getElementById('f-notes').value = client.Notes || '';
   document.getElementById('client-modal').classList.add('open');
@@ -216,7 +228,6 @@ document.getElementById('client-form').addEventListener('submit', async (e) => {
     Chance: document.getElementById('f-chance').value,
     Service: document.getElementById('f-service').value.trim(),
     Business: document.getElementById('f-business').value.trim(),
-    PaymentStatus: document.getElementById('f-payment-status').value,
     Action: document.getElementById('f-action').value.trim(),
     Notes: document.getElementById('f-notes').value.trim(),
   };

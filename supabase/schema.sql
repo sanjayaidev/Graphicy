@@ -18,7 +18,6 @@ create table if not exists ga_clients (
   business       text,
   action         text,               -- "next action" free text
   chance         int,                -- 0–100
-  payment_status text default 'Pending',
   notes          text,
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now()
@@ -26,12 +25,13 @@ create table if not exists ga_clients (
 
 -- ── Tasks ──────────────────────────────────────────────────────────────
 create table if not exists ga_tasks (
-  id          uuid primary key default gen_random_uuid(),
-  client_id   uuid not null references ga_clients(id) on delete cascade,
-  description text not null,
-  due_date    date,
-  status      text not null default 'Pending', -- Pending / Done
-  created_at  timestamptz not null default now()
+  id             uuid primary key default gen_random_uuid(),
+  client_id      uuid not null references ga_clients(id) on delete cascade,
+  description    text not null,
+  due_date       date,
+  status         text not null default 'Pending', -- Pending / Done (work status)
+  payment_status text not null default 'Pending',  -- Pending / Paid / Overdue
+  created_at     timestamptz not null default now()
 );
 
 -- ── Payments ───────────────────────────────────────────────────────────
@@ -88,3 +88,9 @@ alter table ga_clients  enable row level security;
 alter table ga_tasks    enable row level security;
 alter table ga_payments enable row level security;
 alter table ga_history  enable row level security;
+
+-- ── Migration: payment status moves from client to task ────────────────
+-- Safe to run on a fresh database (the ADD/DROP are no-ops if already
+-- applied) as well as an existing one that still has ga_clients.payment_status.
+alter table ga_tasks   add column if not exists payment_status text not null default 'Pending';
+alter table ga_clients drop column if exists payment_status;

@@ -219,6 +219,7 @@ function renderDashboard() {
         <div>${escapeHtml(t.Description || '')}</div>
         <div class="mono">${t.DueDate ? escapeHtml(formatDate(t.DueDate)) : '—'}</div>
         <div><span class="tag ${tagClass}">${label}</span></div>
+        <div><span class="tag ${(t.PaymentStatus || 'pending').toLowerCase()}">${escapeHtml(t.PaymentStatus || 'Pending')}</span></div>
       </div>`;
   }).join('');
   body.innerHTML = rowsHtml;
@@ -242,7 +243,6 @@ function getFilteredClients() {
 function clientCardHtml(c) {
   const chance = Number(c.Chance) || 0;
   const statusClass = (c.Type || '').toLowerCase();
-  const paymentClass = (c.PaymentStatus || 'pending').toLowerCase();
   return `
     <div class="panel" style="cursor:pointer;" onclick="openDetail('${c.UniqueID}')">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
@@ -252,7 +252,6 @@ function clientCardHtml(c) {
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
           <span class="tag ${statusClass}">${escapeHtml(c.Type || '—')}</span>
-          <span class="tag ${paymentClass}">${escapeHtml(c.PaymentStatus || 'Pending')}</span>
         </div>
       </div>
       ${c.Action ? `<div class="sub" style="margin-top:10px;"><strong>Next action:</strong> ${escapeHtml(c.Action)}</div>` : ''}
@@ -313,7 +312,6 @@ function openEdit(id) {
   document.getElementById('f-chance').value = c.Chance || '';
   document.getElementById('f-service').value = c.Service || '';
   document.getElementById('f-business').value = c.Business || '';
-  document.getElementById('f-payment-status').value = c.PaymentStatus || 'Pending';
   document.getElementById('f-action').value = c.Action || '';
   document.getElementById('f-notes').value = c.Notes || '';
   document.getElementById('client-modal').classList.add('open');
@@ -347,7 +345,6 @@ document.getElementById('client-form').addEventListener('submit', async (e) => {
     Chance: document.getElementById('f-chance').value,
     Service: document.getElementById('f-service').value.trim(),
     Business: document.getElementById('f-business').value.trim(),
-    PaymentStatus: document.getElementById('f-payment-status').value,
     Action: document.getElementById('f-action').value.trim(),
     Notes: document.getElementById('f-notes').value.trim(),
   };
@@ -430,12 +427,31 @@ function renderTasks() {
         <div>${escapeHtml(t.Description || '')}</div>
         <div class="mono">${t.DueDate ? escapeHtml(formatDate(t.DueDate)) : '—'}</div>
         <div><span class="tag ${tagClass}">${label}</span></div>
+        <div>${paymentSelectHtml(t)}</div>
         <div class="row-actions">
           <button class="ghost small" onclick="toggleTaskStatus('${t.TaskID}', ${!isDone})">${isDone ? 'Reopen' : 'Done'}</button>
           <button class="danger small" onclick="deleteTaskGlobal('${t.TaskID}')">&times;</button>
         </div>
       </div>`;
   }).join('');
+}
+
+// Renders a small pill-styled <select> for a task's payment status, so it
+// can be viewed and changed inline without opening the task.
+function paymentSelectHtml(t) {
+  const current = t.PaymentStatus || 'Pending';
+  return `<select class="tag-select ${current.toLowerCase()}" onchange="setTaskPaymentStatus('${t.TaskID}', this.value)">
+    ${['Pending', 'Paid', 'Overdue'].map(s => `<option value="${s}" ${s === current ? 'selected' : ''}>${s}</option>`).join('')}
+  </select>`;
+}
+
+async function setTaskPaymentStatus(taskId, paymentStatus) {
+  await fetch(`/api/tasks/${encodeURIComponent(taskId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ paymentStatus }),
+  });
+  await refreshAfterChange();
 }
 
 document.getElementById('t-filter-client').addEventListener('change', renderTasks);
@@ -461,11 +477,12 @@ document.getElementById('task-form').addEventListener('submit', async (e) => {
   if (!clientId || !description) return;
   const dueDate = document.getElementById('tf-due').value;
   const status = document.getElementById('tf-status').value;
+  const paymentStatus = document.getElementById('tf-payment-status').value;
 
   const res = await fetch('/api/tasks', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ clientId, description, dueDate, status }),
+    body: JSON.stringify({ clientId, description, dueDate, status, paymentStatus }),
   });
 
   if (!res.ok) {
@@ -505,6 +522,27 @@ function computeClientWorkStatus(clientId) {
   return hasOpen ? 'ontrack' : 'clear';
 }
 
+// Payment status now lives per task, so a client's "payment status" is a
+// summary across its tasks rather than a single value.
+function clientPaymentTasks(clientId) {
+  return allTasks.filter(t => String(t.ClientID) === String(clientId));
+}
+
+function computeClientPaymentSummary(clientId) {
+  const tasks = clientPaymentTasks(clientId);
+  if (!tasks.length) return { label: 'No tasks', dominant: null, counts: {} };
+  const counts = { Paid: 0, Pending: 0, Overdue: 0 };
+  tasks.forEach(t => { counts[t.PaymentStatus || 'Pending'] = (counts[t.PaymentStatus || 'Pending'] || 0) + 1; });
+  // Worst-first: if anything is overdue or pending, lead with that so the
+  // summary surfaces what still needs attention.
+  const dominant = counts.Overdue ? 'Overdue' : (counts.Pending ? 'Pending' : 'Paid');
+  const label = ['Overdue', 'Pending', 'Paid']
+    .filter(k => counts[k])
+    .map(k => `${counts[k]} ${k}`)
+    .join(' · ');
+  return { label, dominant, counts };
+}
+
 function getFilteredStatusRows() {
   const search = document.getElementById('s-search').value.toLowerCase().trim();
   const clientFilter = document.getElementById('s-filter-client').value;
@@ -514,7 +552,7 @@ function getFilteredStatusRows() {
   return allClients.filter(c => {
     if (clientFilter && String(c.UniqueID) !== String(clientFilter)) return false;
     if (workFilter && computeClientWorkStatus(c.UniqueID) !== workFilter) return false;
-    if (paymentFilter && (c.PaymentStatus || 'Pending') !== paymentFilter) return false;
+    if (paymentFilter && !clientPaymentTasks(c.UniqueID).some(t => (t.PaymentStatus || 'Pending') === paymentFilter)) return false;
     if (search) {
       const hay = [c.Name, c.Business, c.Service, c.Number, c.Country].join(' ').toLowerCase();
       if (!hay.includes(search)) return false;
@@ -536,7 +574,8 @@ function renderStatus() {
 
   body.innerHTML = list.map(c => {
     const work = computeClientWorkStatus(c.UniqueID);
-    const paymentClass = (c.PaymentStatus || 'pending').toLowerCase();
+    const payment = computeClientPaymentSummary(c.UniqueID);
+    const paymentClass = payment.dominant ? payment.dominant.toLowerCase() : '';
     const nameText = (c.Name && String(c.Name).trim()) || '(no name)';
     if (nameText === '(no name)') {
       console.warn('Client is missing a Name value — check the "Name" header cell in your Clients sheet:', c);
@@ -545,7 +584,7 @@ function renderStatus() {
       <div class="ledger-row status-grid">
         <div class="name" onclick="openDetail('${c.UniqueID}')">${escapeHtml(nameText)}</div>
         <div><span class="tag ${workClass[work]}">${workLabels[work]}</span></div>
-        <div><span class="tag ${paymentClass}">${escapeHtml(c.PaymentStatus || 'Pending')}</span></div>
+        <div>${payment.dominant ? `<span class="tag ${paymentClass}">${escapeHtml(payment.label)}</span>` : `<span class="sub">${payment.label}</span>`}</div>
         <div class="sub">${escapeHtml(c.Action || '')}</div>
         <div class="row-actions">
           <button class="ghost small" onclick="openDetail('${c.UniqueID}')">View</button>
@@ -724,7 +763,6 @@ function renderDetailInfo(c) {
     ['Service', c.Service],
     ['Business', c.Business],
     ['Next action', c.Action],
-    ['Payment status', c.PaymentStatus],
     ['Notes', c.Notes],
   ];
   document.getElementById('detail-info-body').innerHTML = rows
@@ -754,6 +792,7 @@ function renderDetailTasks() {
       <input type="checkbox" ${t.Status === 'Done' ? 'checked' : ''} onchange="toggleDetailTask('${t.TaskID}', this.checked)">
       <div class="desc ${t.Status === 'Done' ? 'done' : ''}">${escapeHtml(t.Description)}</div>
       ${t.DueDate ? `<div class="due mono">${escapeHtml(formatDate(t.DueDate))}</div>` : ''}
+      ${paymentSelectHtml(t)}
       <button class="ghost small" onclick="deleteDetailTask('${t.TaskID}')">&times;</button>
     </div>
   `).join('');
@@ -782,11 +821,12 @@ document.getElementById('detail-add-task-btn').addEventListener('click', async (
   const description = document.getElementById('detail-new-task-desc').value.trim();
   if (!description) return;
   const dueDate = document.getElementById('detail-new-task-due').value;
+  const paymentStatus = document.getElementById('detail-new-task-payment-status').value;
 
   await fetch('/api/tasks', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ clientId: currentDetailId, description, dueDate, status: 'Pending' }),
+    body: JSON.stringify({ clientId: currentDetailId, description, dueDate, status: 'Pending', paymentStatus }),
   });
 
   document.getElementById('detail-new-task-desc').value = '';

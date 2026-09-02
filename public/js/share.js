@@ -53,11 +53,13 @@ async function loadShare() {
         const isOverdue = !isDone && t.DueDate && new Date(t.DueDate) < today;
         const tagClass = isOverdue ? 'overdue' : (isDone ? 'paid' : 'pending');
         const label = isOverdue ? 'Overdue' : (isDone ? 'Done' : 'Pending');
+        const paymentStatus = t.PaymentStatus || 'Pending';
         return `
           <div class="task-row">
             <div class="desc ${isDone ? 'done' : ''}">${escapeHtml(t.Description || '')}</div>
             ${t.DueDate ? `<div class="due mono">${escapeHtml(formatDate(t.DueDate))}</div>` : ''}
             <span class="tag ${tagClass}">${label}</span>
+            <span class="tag ${paymentStatus.toLowerCase()}">${escapeHtml(paymentStatus)}</span>
           </div>`;
       }).join('')
     : '<p style="color:var(--ink-faint); font-size:13.5px;">No tasks yet.</p>';
