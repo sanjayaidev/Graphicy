@@ -58,6 +58,7 @@ async function loadShare() {
           <div class="task-row">
             <div class="desc ${isDone ? 'done' : ''}">${escapeHtml(t.Description || '')}</div>
             ${t.DueDate ? `<div class="due mono">${escapeHtml(formatDate(t.DueDate))}</div>` : ''}
+            ${Number(t.Amount) ? `<div class="mono">${formatMoney(t.Amount)}</div>` : ''}
             <span class="tag ${tagClass}">${label}</span>
             <span class="tag ${paymentStatus.toLowerCase()}">${escapeHtml(paymentStatus)}</span>
           </div>`;

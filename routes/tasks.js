@@ -25,14 +25,14 @@ router.get('/', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/tasks  { clientId, description, dueDate, status, paymentStatus }
+// POST /api/tasks  { clientId, description, dueDate, status, paymentStatus, amount }
 router.post('/', async (req, res, next) => {
   try {
     res.status(201).json(await db.addTask(req.body));
   } catch (err) { next(err); }
 });
 
-// PUT /api/tasks/:id  { description, dueDate, status, paymentStatus }
+// PUT /api/tasks/:id  { description, dueDate, status, paymentStatus, amount }
 router.put('/:id', async (req, res, next) => {
   try {
     res.json(await db.updateTask(req.params.id, req.body));

@@ -63,6 +63,7 @@ async function loadTasks() {
       <select class="tag-select ${(t.PaymentStatus || 'pending').toLowerCase()}" onchange="setTaskPaymentStatus('${t.TaskID}', this.value)">
         ${['Pending', 'Paid', 'Overdue'].map(s => `<option value="${s}" ${s === (t.PaymentStatus || 'Pending') ? 'selected' : ''}>${s}</option>`).join('')}
       </select>
+      <input type="number" min="0" class="mini-amount" value="${Number(t.Amount) || 0}" onchange="setTaskAmount('${t.TaskID}', this.value)">
       <button class="ghost small" onclick="deleteTask('${t.TaskID}')">&times;</button>
     </div>
   `).join('');
@@ -83,6 +84,16 @@ async function setTaskPaymentStatus(taskId, paymentStatus) {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ paymentStatus }),
+  });
+  await loadTasks();
+  await loadHistory();
+}
+
+async function setTaskAmount(taskId, amount) {
+  await fetch(`/api/tasks/${encodeURIComponent(taskId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amount }),
   });
   await loadTasks();
   await loadHistory();
@@ -167,13 +178,15 @@ document.getElementById('add-task-btn').addEventListener('click', async () => {
   if (!description) return;
   const dueDate = document.getElementById('new-task-due').value;
   const paymentStatus = document.getElementById('new-task-payment-status').value;
+  const amount = document.getElementById('new-task-amount').value;
   await fetch('/api/tasks', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ clientId, description, dueDate, status: 'Pending', paymentStatus }),
+    body: JSON.stringify({ clientId, description, dueDate, status: 'Pending', paymentStatus, amount }),
   });
   document.getElementById('new-task-desc').value = '';
   document.getElementById('new-task-due').value = '';
+  document.getElementById('new-task-amount').value = '';
   await loadTasks();
   await loadHistory();
 });

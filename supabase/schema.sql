@@ -32,6 +32,7 @@ create table if not exists ga_tasks (
   due_date       date,
   status         text not null default 'Pending', -- Pending / Done (work status)
   payment_status text not null default 'Pending',  -- Pending / Paid / Overdue
+  amount         numeric not null default 0,       -- what this task is worth/billed for
   created_at     timestamptz not null default now()
 );
 
@@ -96,3 +97,4 @@ alter table ga_history  enable row level security;
 alter table ga_tasks   add column if not exists payment_status text not null default 'Pending';
 alter table ga_clients drop column if exists payment_status;
 alter table ga_clients add column if not exists bulk_billing boolean not null default false;
+alter table ga_tasks   add column if not exists amount numeric not null default 0;

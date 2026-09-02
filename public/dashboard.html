@@ -97,7 +97,7 @@
 
     <div class="ledger" id="tasks-table">
       <div class="ledger-row head task-grid">
-        <div>Client</div><div>Task</div><div>Due date</div><div>Status</div><div>Payment</div><div></div>
+        <div>Client</div><div>Task</div><div>Due date</div><div>Status</div><div>Payment</div><div>Amount</div><div></div>
       </div>
       <div id="tasks-body"><div class="loading">Loading tasks…</div></div>
     </div>
@@ -232,6 +232,7 @@
             <select id="detail-new-task-payment-status" style="max-width:120px;">
               <option>Pending</option><option>Paid</option><option>Overdue</option>
             </select>
+            <input id="detail-new-task-amount" type="number" min="0" placeholder="Amount" style="max-width:100px;">
             <button class="primary" id="detail-add-task-btn">Add</button>
           </div>
         </div>
@@ -320,6 +321,7 @@
       <div class="field"><label>Payment status</label>
         <select id="tf-payment-status"><option>Pending</option><option>Paid</option><option>Overdue</option></select>
       </div>
+      <div class="field"><label>Amount</label><input id="tf-amount" type="number" min="0" placeholder="0"></div>
       <div class="modal-actions">
         <button type="button" class="ghost" id="task-modal-cancel">Cancel</button>
         <button type="submit" class="primary">Add task</button>

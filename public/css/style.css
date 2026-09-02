@@ -328,6 +328,16 @@ label {
 .tag-select.pending { background-color: #FEF3C7; color: var(--signal); }
 .tag-select.overdue { background-color: var(--danger-soft); color: var(--danger); }
 
+.mini-amount {
+  width: 74px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  font-size: 13px;
+  font-family: inherit;
+  text-align: right;
+}
+
 .chance-meter { display: flex; align-items: center; gap: 8px; }
 .chance-meter .bar {
   width: 48px; height: 5px; background: var(--line-soft); position: relative;
@@ -648,7 +658,7 @@ label {
 /* ─── Task grid header ──────────────────────────────────────── */
 
 .task-grid {
-  grid-template-columns: 1.3fr 1.8fr 0.9fr 0.8fr 0.9fr 90px !important;
+  grid-template-columns: 1.2fr 1.6fr 0.8fr 0.75fr 0.85fr 0.8fr 90px !important;
 }
 
 /* ─── Status grid header ────────────────────────────────────── */

@@ -222,6 +222,7 @@ function renderDashboard() {
         <div class="mono">${t.DueDate ? escapeHtml(formatDate(t.DueDate)) : '—'}</div>
         <div><span class="tag ${tagClass}">${label}</span></div>
         <div><span class="tag ${(t.PaymentStatus || 'pending').toLowerCase()}">${escapeHtml(t.PaymentStatus || 'Pending')}</span></div>
+        <div class="mono">${formatMoney(t.Amount)}</div>
       </div>`;
   }).join('');
   body.innerHTML = rowsHtml;
@@ -432,6 +433,7 @@ function renderTasks() {
         <div class="mono">${t.DueDate ? escapeHtml(formatDate(t.DueDate)) : '—'}</div>
         <div><span class="tag ${tagClass}">${label}</span></div>
         <div>${paymentSelectHtml(t)}</div>
+        <div><input type="number" min="0" class="mini-amount" value="${Number(t.Amount) || 0}" onchange="setTaskAmount('${t.TaskID}', this.value)"></div>
         <div class="row-actions">
           <button class="ghost small" onclick="toggleTaskStatus('${t.TaskID}', ${!isDone})">${isDone ? 'Reopen' : 'Done'}</button>
           <button class="danger small" onclick="deleteTaskGlobal('${t.TaskID}')">&times;</button>
@@ -454,6 +456,15 @@ async function setTaskPaymentStatus(taskId, paymentStatus) {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ paymentStatus }),
+  });
+  await refreshAfterChange();
+}
+
+async function setTaskAmount(taskId, amount) {
+  await fetch(`/api/tasks/${encodeURIComponent(taskId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amount }),
   });
   await refreshAfterChange();
 }
@@ -482,11 +493,12 @@ document.getElementById('task-form').addEventListener('submit', async (e) => {
   const dueDate = document.getElementById('tf-due').value;
   const status = document.getElementById('tf-status').value;
   const paymentStatus = document.getElementById('tf-payment-status').value;
+  const amount = document.getElementById('tf-amount').value;
 
   const res = await fetch('/api/tasks', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ clientId, description, dueDate, status, paymentStatus }),
+    body: JSON.stringify({ clientId, description, dueDate, status, paymentStatus, amount }),
   });
 
   if (!res.ok) {
@@ -878,6 +890,7 @@ function renderDetailTasks() {
       <div class="desc ${t.Status === 'Done' ? 'done' : ''}">${escapeHtml(t.Description)}</div>
       ${t.DueDate ? `<div class="due mono">${escapeHtml(formatDate(t.DueDate))}</div>` : ''}
       ${paymentSelectHtml(t)}
+      <input type="number" min="0" class="mini-amount" value="${Number(t.Amount) || 0}" onchange="setTaskAmount('${t.TaskID}', this.value)">
       <button class="ghost small" onclick="deleteDetailTask('${t.TaskID}')">&times;</button>
     </div>
   `).join('');
@@ -907,15 +920,17 @@ document.getElementById('detail-add-task-btn').addEventListener('click', async (
   if (!description) return;
   const dueDate = document.getElementById('detail-new-task-due').value;
   const paymentStatus = document.getElementById('detail-new-task-payment-status').value;
+  const amount = document.getElementById('detail-new-task-amount').value;
 
   await fetch('/api/tasks', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ clientId: currentDetailId, description, dueDate, status: 'Pending', paymentStatus }),
+    body: JSON.stringify({ clientId: currentDetailId, description, dueDate, status: 'Pending', paymentStatus, amount }),
   });
 
   document.getElementById('detail-new-task-desc').value = '';
   document.getElementById('detail-new-task-due').value = '';
+  document.getElementById('detail-new-task-amount').value = '';
   await refreshAfterChange();
 });
 
