@@ -21,6 +21,7 @@
     <button class="tab-btn" data-tab="clients">Clients</button>
     <button class="tab-btn" data-tab="tasks">Tasks</button>
     <button class="tab-btn" data-tab="status">Status</button>
+    <button class="tab-btn" data-tab="bulk">Bulk</button>
     <button class="tab-btn" data-tab="earnings">Earnings</button>
   </nav>
 
@@ -130,6 +131,17 @@
       </div>
       <div id="status-body"><div class="loading">Loading…</div></div>
     </div>
+
+  </section>
+
+  <!-- ═══════════════════ BULK BILLING TAB ═══════════════════ -->
+  <section class="tab-panel" id="tab-bulk" hidden>
+
+    <p class="ink-faint" style="font-size:13.5px; margin-bottom:16px;">
+      Clients marked "Pays in bulk" in their profile. Log one payment here to record what they've paid — it isn't tied to any individual task.
+    </p>
+
+    <div class="card-list" id="bulk-list"><div class="loading">Loading…</div></div>
 
   </section>
 
@@ -273,6 +285,13 @@
         <div class="field"><label>Chance (%)</label><input id="f-chance" type="number" min="0" max="100"></div>
         <div class="field"><label>Service</label><input id="f-service" placeholder="SMM"></div>
         <div class="field"><label>Business</label><input id="f-business" placeholder="Dental Clinic"></div>
+        <div class="field">
+          <label>Billing</label>
+          <label class="inline-label" style="margin-top:6px;">
+            <input type="checkbox" id="f-bulk-billing" style="width:auto;">
+            Pays in bulk (lump sum / flat fee, not tracked per task)
+          </label>
+        </div>
         <div class="field"><label>Next action</label><input id="f-action" placeholder="Follow up for meeting"></div>
         <div class="field" style="grid-column: 1 / -1;">
           <label>Notes</label>

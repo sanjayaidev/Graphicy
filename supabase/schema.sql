@@ -18,6 +18,7 @@ create table if not exists ga_clients (
   business       text,
   action         text,               -- "next action" free text
   chance         int,                -- 0–100
+  bulk_billing   boolean not null default false, -- pays a lump sum / flat fee, not tracked per task
   notes          text,
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now()
@@ -94,3 +95,4 @@ alter table ga_history  enable row level security;
 -- applied) as well as an existing one that still has ga_clients.payment_status.
 alter table ga_tasks   add column if not exists payment_status text not null default 'Pending';
 alter table ga_clients drop column if exists payment_status;
+alter table ga_clients add column if not exists bulk_billing boolean not null default false;

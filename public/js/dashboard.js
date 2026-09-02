@@ -75,6 +75,7 @@ async function loadAll() {
   renderClients();
   renderTasks();
   renderStatus();
+  renderBulk();
   renderEarnings();
 }
 
@@ -85,6 +86,7 @@ async function refreshAfterChange() {
   renderClients();
   renderTasks();
   renderStatus();
+  renderBulk();
   renderEarnings();
   if (currentDetailId) {
     const c = allClients.find(x => String(x.UniqueID) === String(currentDetailId));
@@ -312,6 +314,7 @@ function openEdit(id) {
   document.getElementById('f-chance').value = c.Chance || '';
   document.getElementById('f-service').value = c.Service || '';
   document.getElementById('f-business').value = c.Business || '';
+  document.getElementById('f-bulk-billing').checked = !!c.BulkBilling;
   document.getElementById('f-action').value = c.Action || '';
   document.getElementById('f-notes').value = c.Notes || '';
   document.getElementById('client-modal').classList.add('open');
@@ -345,6 +348,7 @@ document.getElementById('client-form').addEventListener('submit', async (e) => {
     Chance: document.getElementById('f-chance').value,
     Service: document.getElementById('f-service').value.trim(),
     Business: document.getElementById('f-business').value.trim(),
+    BulkBilling: document.getElementById('f-bulk-billing').checked,
     Action: document.getElementById('f-action').value.trim(),
     Notes: document.getElementById('f-notes').value.trim(),
   };
@@ -598,6 +602,86 @@ document.getElementById('s-filter-client').addEventListener('change', renderStat
 document.getElementById('s-filter-work').addEventListener('change', renderStatus);
 document.getElementById('s-filter-payment').addEventListener('change', renderStatus);
 
+// ─── Bulk billing tab ────────────────────────────────────────────────────
+// Clients flagged BulkBilling pay a lump sum / flat fee rather than being
+// tracked per task. This tab lets you log a payment straight against the
+// client (via the existing /api/payments endpoint — payments were always
+// client-scoped, never task-scoped) without opening their detail modal.
+
+function bulkClientCardHtml(c) {
+  const payments = allPayments.filter(p => String(p.ClientID) === String(c.UniqueID));
+  const totalPaid = payments
+    .filter(p => (p.Status || '').toLowerCase() === 'paid')
+    .reduce((sum, p) => sum + (Number(p.Amount) || 0), 0);
+  const sorted = payments.slice().sort((a, b) => new Date(b.Date || 0) - new Date(a.Date || 0));
+  const recent = sorted.slice(0, 3);
+
+  const recentHtml = recent.length
+    ? recent.map(p => `
+        <div class="payment-row">
+          <div class="amount mono">${formatMoney(p.Amount)}</div>
+          <div class="meta">${escapeHtml(p.Notes || '')} ${p.Date ? '· ' + escapeHtml(formatDate(p.Date)) : ''}</div>
+          <span class="tag ${(p.Status || '').toLowerCase()}">${escapeHtml(p.Status || '')}</span>
+          <button class="ghost small" onclick="deleteBulkPayment('${p.PaymentID}')">&times;</button>
+        </div>`).join('')
+    : '<p style="color:var(--ink-faint); font-size:13.5px;">No bulk payments logged yet.</p>';
+
+  return `
+    <div class="panel">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+        <div>
+          <div class="name" style="cursor:pointer;" onclick="openDetail('${c.UniqueID}')">${escapeHtml(c.Name)}</div>
+          <div class="sub">${escapeHtml(c.Business || '')}</div>
+        </div>
+        <div class="sub">Total paid <strong>${formatMoney(totalPaid)}</strong></div>
+      </div>
+      <div style="margin-top:12px;">${recentHtml}</div>
+      <div class="inline-add" style="margin-top:10px;">
+        <input type="number" placeholder="Amount" style="max-width:110px;" id="bulk-amount-${c.UniqueID}">
+        <select style="max-width:120px;" id="bulk-status-${c.UniqueID}">
+          <option>Paid</option><option>Pending</option><option>Overdue</option>
+        </select>
+        <input placeholder="Notes (optional)" id="bulk-notes-${c.UniqueID}">
+        <button class="primary" onclick="logBulkPayment('${c.UniqueID}')">Log</button>
+      </div>
+    </div>`;
+}
+
+function renderBulk() {
+  const list = allClients.filter(c => c.BulkBilling);
+  const body = document.getElementById('bulk-list');
+  if (!list.length) {
+    body.innerHTML = `<div class="empty-state">
+      <h3>No bulk-billing clients yet</h3>
+      <p>Mark a client "Pays in bulk" from their profile to have them show up here.</p>
+    </div>`;
+    return;
+  }
+  body.innerHTML = list.map(bulkClientCardHtml).join('');
+}
+
+async function logBulkPayment(clientId) {
+  const amountEl = document.getElementById(`bulk-amount-${clientId}`);
+  const amount = amountEl.value;
+  if (!amount) return;
+  const status = document.getElementById(`bulk-status-${clientId}`).value;
+  const notes = document.getElementById(`bulk-notes-${clientId}`).value.trim();
+
+  await fetch('/api/payments', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ clientId, amount, status, notes, date: new Date().toISOString() }),
+  });
+
+  await refreshAfterChange();
+}
+
+async function deleteBulkPayment(paymentId) {
+  if (!confirm('Delete this payment record?')) return;
+  await fetch(`/api/payments/${encodeURIComponent(paymentId)}`, { method: 'DELETE' });
+  await refreshAfterChange();
+}
+
 // ─── Earnings tab ────────────────────────────────────────────────────────
 
 function formatMoney(n) {
@@ -763,6 +847,7 @@ function renderDetailInfo(c) {
     ['Service', c.Service],
     ['Business', c.Business],
     ['Next action', c.Action],
+    ['Billing', c.BulkBilling ? 'Bulk (lump sum / flat fee)' : ''],
     ['Notes', c.Notes],
   ];
   document.getElementById('detail-info-body').innerHTML = rows
