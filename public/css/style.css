@@ -353,6 +353,27 @@ label {
   border-color: var(--ink-faint);
 }
 
+.status-note-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.status-note-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.status-note-edit-btn {
+  flex: none;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+.status-note-cell:hover .status-note-edit-btn {
+  opacity: 1;
+}
+
 .chance-meter { display: flex; align-items: center; gap: 8px; }
 .chance-meter .bar {
   width: 48px; height: 5px; background: var(--line-soft); position: relative;

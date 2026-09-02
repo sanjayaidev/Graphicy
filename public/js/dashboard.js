@@ -601,14 +601,9 @@ function renderStatus() {
         <div class="name" onclick="openDetail('${c.UniqueID}')">${escapeHtml(nameText)}</div>
         <div><span class="tag ${workClass[work]}">${workLabels[work]}</span></div>
         <div>${payment.dominant ? `<span class="tag ${paymentClass}">${escapeHtml(payment.label)}</span>` : `<span class="sub">${payment.label}</span>`}</div>
-        <div>
-          <input
-            type="text"
-            class="mini-notes"
-            placeholder="Add a note…"
-            value="${escapeHtml(c.Notes || '')}"
-            onchange="setClientNotes('${c.UniqueID}', this.value)"
-          >
+        <div class="status-note-cell" id="status-note-cell-${c.UniqueID}">
+          <span class="sub status-note-text" id="status-note-text-${c.UniqueID}">${escapeHtml(c.Action || '')}</span>
+          <button class="ghost small status-note-edit-btn" title="Edit note" onclick="editStatusNote('${c.UniqueID}')">✎</button>
         </div>
         <div class="row-actions">
           <button class="ghost small" onclick="openDetail('${c.UniqueID}')">View</button>
@@ -617,14 +612,34 @@ function renderStatus() {
   }).join('');
 }
 
-// Saves a client's Notes straight from the Status tab — no need to open
-// the edit-client modal for a quick note update. Only patches Notes, same
-// as setTaskAmount/setTaskPaymentStatus do for their own single field.
-async function setClientNotes(clientId, notes) {
+// Turns a row's plain-text note into an inline input, pre-filled with the
+// current value, so it can be edited without leaving the Status tab or
+// opening the client-edit modal.
+function editStatusNote(clientId) {
+  const cell = document.getElementById(`status-note-cell-${clientId}`);
+  if (!cell) return;
+  const current = document.getElementById(`status-note-text-${clientId}`).textContent;
+  cell.innerHTML = `
+    <input type="text" class="mini-notes" id="status-note-input-${clientId}" value="${escapeHtml(current)}">
+    <button class="ghost small" onclick="saveStatusNote('${clientId}')" title="Save">✓</button>
+    <button class="ghost small" onclick="renderStatus()" title="Cancel">&times;</button>
+  `;
+  const input = document.getElementById(`status-note-input-${clientId}`);
+  input.focus();
+  input.select();
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') saveStatusNote(clientId);
+    if (e.key === 'Escape') renderStatus();
+  });
+}
+
+async function saveStatusNote(clientId) {
+  const input = document.getElementById(`status-note-input-${clientId}`);
+  const value = input ? input.value : '';
   await fetch(`/api/clients/${encodeURIComponent(clientId)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ Notes: notes }),
+    body: JSON.stringify({ Action: value }),
   });
   await refreshAfterChange();
 }
