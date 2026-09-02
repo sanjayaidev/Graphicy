@@ -174,13 +174,46 @@ function renderDashboard() {
     return;
   }
 
-  const sorted = workTasks.slice().sort((a, b) => new Date(a.DueDate || 0) - new Date(b.DueDate || 0));
-  body.innerHTML = sorted.map(t => {
+  // Priority order for "what to complete first":
+  //   1. Pending tasks with a due date, soonest (most overdue) first
+  //   2. Pending tasks with no due date — still need doing, just not
+  //      "when", so they come after anything with an actual deadline
+  //   3. Done tasks last — nothing left to complete here
+  function taskTier(t) {
     const isDone = (t.Status || '').toLowerCase() === 'done';
-    const isOverdue = !isDone && t.DueDate && new Date(t.DueDate) < today;
+    if (isDone) return 2;
+    return t.DueDate ? 0 : 1;
+  }
+
+  const sorted = workTasks.slice().sort((a, b) => {
+    const ta = taskTier(a), tb = taskTier(b);
+    if (ta !== tb) return ta - tb;
+    if (ta === 0) return new Date(a.DueDate) - new Date(b.DueDate);
+    if (ta === 2) return new Date(b.DueDate || 0) - new Date(a.DueDate || 0); // most recently done first
+    return (a.Description || '').localeCompare(b.Description || '');
+  });
+
+  const groupLabels = {
+    0: null, // no header needed — this is the default "top of the list" group
+    1: 'No due date',
+    2: 'Done',
+  };
+
+  let lastTier = null;
+  const rowsHtml = sorted.map(t => {
+    const tier = taskTier(t);
+    const isDone = tier === 2;
+    const isOverdue = tier === 0 && new Date(t.DueDate) < today;
     const tagClass = isOverdue ? 'overdue' : (isDone ? 'paid' : 'pending');
     const label = isOverdue ? 'Overdue' : (isDone ? 'Done' : 'Pending');
-    return `
+
+    let groupHeader = '';
+    if (tier !== lastTier && groupLabels[tier]) {
+      groupHeader = `<div class="sub" style="grid-column: 1 / -1; font-weight:600; padding-top:10px;">${groupLabels[tier]}</div>`;
+    }
+    lastTier = tier;
+
+    return groupHeader + `
       <div class="ledger-row task-grid">
         <div class="name" onclick="openDetail('${t.ClientID}')">${escapeHtml(t.ClientName || clientName(t.ClientID))}</div>
         <div>${escapeHtml(t.Description || '')}</div>
@@ -188,6 +221,7 @@ function renderDashboard() {
         <div><span class="tag ${tagClass}">${label}</span></div>
       </div>`;
   }).join('');
+  body.innerHTML = rowsHtml;
 }
 
 // ─── Clients tab ─────────────────────────────────────────────────────────
