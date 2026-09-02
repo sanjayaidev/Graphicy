@@ -98,3 +98,22 @@ alter table ga_tasks   add column if not exists payment_status text not null def
 alter table ga_clients drop column if exists payment_status;
 alter table ga_clients add column if not exists bulk_billing boolean not null default false;
 alter table ga_tasks   add column if not exists amount numeric not null default 0;
+
+-- ── Follow-ups (Calendar tab) ─────────────────────────────────────────
+-- Scheduled follow-ups against a client — meetings, calls, check-ins, etc.
+-- scheduled_at is always current-or-future at creation time (enforced in
+-- lib/supabase.js, not here, since "future" depends on the moment of the
+-- insert). purpose is free text set by the user ("Schedule meeting", "Send
+-- proposal", ...). status starts Scheduled and can be marked Done.
+create table if not exists ga_followups (
+  id             uuid primary key default gen_random_uuid(),
+  client_id      uuid not null references ga_clients(id) on delete cascade,
+  scheduled_at   timestamptz not null,
+  purpose        text not null,
+  status         text not null default 'Scheduled', -- Scheduled / Done
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now()
+);
+create index if not exists ga_followups_client_id_idx     on ga_followups(client_id);
+create index if not exists ga_followups_scheduled_at_idx  on ga_followups(scheduled_at);
+alter table ga_followups enable row level security;

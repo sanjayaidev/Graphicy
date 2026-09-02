@@ -743,3 +743,75 @@ label {
   font-size: 22px;
   color: var(--ink);
 }
+
+/* ─── Calendar tab ───────────────────────────────────────────── */
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.calendar-weekdays {
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.calendar-day {
+  min-height: 92px;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid var(--line-soft);
+  background: var(--bg);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.calendar-day:hover { border-color: var(--accent-soft); background: var(--surface); }
+.calendar-day.other-month { opacity: 0.4; }
+.calendar-day.today { border-color: var(--accent); background: var(--accent-soft); }
+.calendar-day.past { cursor: default; }
+.calendar-day.past:hover { border-color: var(--line-soft); background: var(--bg); }
+.calendar-day-num {
+  font-family: 'IBM Plex Mono';
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+.calendar-day.today .calendar-day-num { color: var(--accent-hover); font-weight: 600; }
+.calendar-event {
+  font-size: 11.5px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--warm-soft);
+  color: var(--warm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.calendar-event.done { background: var(--line-soft); color: var(--ink-faint); text-decoration: line-through; }
+.calendar-event-more { font-size: 11px; color: var(--ink-faint); }
+
+.upcoming-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.upcoming-row:last-child { border-bottom: none; }
+.upcoming-row .when {
+  font-family: 'IBM Plex Mono';
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  width: 150px;
+  flex: none;
+}
+.upcoming-row .name { font-family: 'Newsreader'; font-size: 15px; cursor: pointer; flex: none; width: 140px; }
+.upcoming-row .name:hover { text-decoration: underline; color: var(--accent); }
+.upcoming-row .purpose { flex: 1; font-size: 13.5px; color: var(--ink-soft); }
+.upcoming-row .row-actions { flex: none; display: flex; gap: 6px; }

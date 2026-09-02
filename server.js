@@ -9,6 +9,7 @@ const authRoutes = require('./routes/auth');
 const clientRoutes = require('./routes/clients');
 const taskRoutes = require('./routes/tasks');
 const paymentRoutes = require('./routes/payments');
+const followupRoutes = require('./routes/followups');
 const shareRoutes = require('./routes/share');
 
 const app = express();
@@ -27,6 +28,7 @@ app.use('/api/share', shareRoutes);
 app.use('/api/clients', requireAuth, clientRoutes);
 app.use('/api/tasks', requireAuth, taskRoutes);
 app.use('/api/payments', requireAuth, paymentRoutes);
+app.use('/api/followups', requireAuth, followupRoutes);
 
 // Static frontend
 app.use(express.static(path.join(__dirname, 'public')));

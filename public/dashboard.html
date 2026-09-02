@@ -23,6 +23,7 @@
     <button class="tab-btn" data-tab="status">Status</button>
     <button class="tab-btn" data-tab="bulk">Bulk</button>
     <button class="tab-btn" data-tab="earnings">Earnings</button>
+    <button class="tab-btn" data-tab="calendar">Calendar</button>
   </nav>
 
   <!-- ═══════════════════ DASHBOARD TAB ═══════════════════ -->
@@ -190,6 +191,54 @@
 
   </section>
 
+  <!-- ═══════════════════ CALENDAR TAB ═══════════════════ -->
+  <section class="tab-panel" id="tab-calendar" hidden>
+
+    <div class="toolbar">
+      <div class="chip-group" id="cal-nav">
+        <button class="chip" id="cal-prev">&lsaquo; Prev</button>
+        <button class="chip" id="cal-today">Today</button>
+        <button class="chip" id="cal-next">Next &rsaquo;</button>
+      </div>
+      <h3 id="cal-month-label" style="margin:0 4px;"></h3>
+      <div class="spacer"></div>
+      <button class="primary" id="cal-add-btn">+ Schedule follow-up</button>
+    </div>
+
+    <div class="panel">
+      <div class="calendar-grid calendar-weekdays">
+        <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+      </div>
+      <div class="calendar-grid calendar-days" id="cal-days-body"><div class="loading">Loading…</div></div>
+    </div>
+
+    <div class="panel">
+      <h3>Upcoming follow-ups</h3>
+      <p class="ink-faint" style="font-size:13.5px; margin-bottom:12px;">
+        Scheduled, current-or-future follow-ups across all clients, soonest first.
+      </p>
+      <div id="cal-upcoming-body"><div class="loading">Loading…</div></div>
+    </div>
+
+  </section>
+
+</div>
+
+<!-- ═══════════════════ Schedule follow-up modal (Calendar tab) ═══════════════════ -->
+<div class="modal-backdrop" id="followup-modal">
+  <div class="modal">
+    <h2 id="followup-modal-title">Schedule follow-up</h2>
+    <form id="followup-form">
+      <input type="hidden" id="ff-id">
+      <div class="field"><label>Client</label><select id="ff-client" required></select></div>
+      <div class="field"><label>Date &amp; time</label><input id="ff-datetime" type="datetime-local" required></div>
+      <div class="field"><label>Purpose</label><input id="ff-purpose" placeholder="Schedule meeting, send proposal…" required></div>
+      <div class="modal-actions">
+        <button type="button" class="ghost" id="followup-modal-cancel">Cancel</button>
+        <button type="submit" class="primary" id="followup-modal-save">Schedule</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <!-- ═══════════════════ Client detail (reveal) ═══════════════════ -->

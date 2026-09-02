@@ -3,8 +3,10 @@
 let allClients = [];
 let allTasks = [];
 let allPayments = [];
+let allFollowups = [];
 let editingId = null;        // client being edited in the client modal
 let currentDetailId = null;  // client currently open in the detail modal
+let calViewDate = new Date(); // month currently shown on the Calendar tab (day is irrelevant, only Y/M used)
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
@@ -25,6 +27,12 @@ function formatDate(str, withTime) {
 
 function toInputDate(d) {
   return d.toISOString().slice(0, 10);
+}
+
+function formatTime(str) {
+  const d = new Date(str);
+  if (isNaN(d)) return '';
+  return d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
 }
 
 function inRange(dateStr, from, to) {
@@ -64,9 +72,16 @@ async function loadPayments() {
   allPayments = Array.isArray(data) ? data : [];
 }
 
+async function loadFollowups() {
+  const res = await fetch('/api/followups');
+  if (res.status === 401) { window.location.href = '/login.html'; return; }
+  const data = await res.json();
+  allFollowups = Array.isArray(data) ? data : [];
+}
+
 async function loadAll() {
   try {
-    await Promise.all([loadClients(), loadTasks(), loadPayments()]);
+    await Promise.all([loadClients(), loadTasks(), loadPayments(), loadFollowups()]);
   } catch (err) {
     console.error('Failed to load data:', err);
   }
@@ -77,10 +92,11 @@ async function loadAll() {
   renderStatus();
   renderBulk();
   renderEarnings();
+  renderCalendar();
 }
 
 async function refreshAfterChange() {
-  await Promise.all([loadClients(), loadTasks(), loadPayments()]);
+  await Promise.all([loadClients(), loadTasks(), loadPayments(), loadFollowups()]);
   populateClientSelects();
   renderDashboard();
   renderClients();
@@ -88,6 +104,7 @@ async function refreshAfterChange() {
   renderStatus();
   renderBulk();
   renderEarnings();
+  renderCalendar();
   if (currentDetailId) {
     const c = allClients.find(x => String(x.UniqueID) === String(currentDetailId));
     if (c) renderDetailInfo(c);
@@ -394,6 +411,12 @@ function populateClientSelects() {
   tfSel.innerHTML = '<option value="">Select client…</option>' +
     sorted.map(c => `<option value="${c.UniqueID}">${escapeHtml(c.Name)}</option>`).join('');
   if ([...tfSel.options].some(o => o.value === tfCurrent)) tfSel.value = tfCurrent;
+
+  const ffSel = document.getElementById('ff-client');
+  const ffCurrent = ffSel.value;
+  ffSel.innerHTML = '<option value="">Select client…</option>' +
+    sorted.map(c => `<option value="${c.UniqueID}">${escapeHtml(c.Name)}</option>`).join('');
+  if ([...ffSel.options].some(o => o.value === ffCurrent)) ffSel.value = ffCurrent;
 }
 
 function getFilteredTasks() {
@@ -1184,6 +1207,199 @@ async function revokeDetailShareLink(linkId) {
     method: 'DELETE',
   });
   await loadDetailShareLinks(currentDetailId);
+}
+
+// ─── Calendar tab ────────────────────────────────────────────────────────
+// Follow-ups are always scheduled current-or-future — enforced server-side
+// (lib/supabase.js#addFollowup) and mirrored here so the UI doesn't even
+// offer a past date/time to begin with.
+
+function startOfDay(d) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+// Formats a Date as the value a <input type="datetime-local"> expects
+// (local time, no timezone suffix): YYYY-MM-DDTHH:mm
+function toDatetimeLocalValue(d) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function openFollowupModal({ followupId, clientId, when, purpose } = {}) {
+  document.getElementById('ff-id').value = followupId || '';
+  document.getElementById('followup-modal-title').textContent = followupId ? 'Edit follow-up' : 'Schedule follow-up';
+  document.getElementById('followup-modal-save').textContent = followupId ? 'Save' : 'Schedule';
+
+  const dtInput = document.getElementById('ff-datetime');
+  const now = new Date();
+  dtInput.min = toDatetimeLocalValue(now);
+  dtInput.value = toDatetimeLocalValue(when || (() => {
+    // Default to the next half-hour slot so it's never accidentally in the past.
+    const d = new Date(now);
+    d.setMinutes(d.getMinutes() < 30 ? 30 : 0, 0, 0);
+    if (d.getMinutes() === 0) d.setHours(d.getHours() + 1);
+    return d;
+  })());
+
+  document.getElementById('ff-client').value = clientId || '';
+  document.getElementById('ff-purpose').value = purpose || '';
+  document.getElementById('followup-modal').classList.add('open');
+}
+
+function closeFollowupModal() {
+  document.getElementById('followup-modal').classList.remove('open');
+  document.getElementById('followup-form').reset();
+  document.getElementById('ff-id').value = '';
+}
+
+document.getElementById('cal-add-btn').addEventListener('click', () => openFollowupModal());
+document.getElementById('followup-modal-cancel').addEventListener('click', closeFollowupModal);
+document.getElementById('followup-modal').addEventListener('click', (e) => {
+  if (e.target.id === 'followup-modal') closeFollowupModal();
+});
+
+document.getElementById('followup-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const followupId = document.getElementById('ff-id').value;
+  const clientId = document.getElementById('ff-client').value;
+  const dtVal = document.getElementById('ff-datetime').value;
+  const purpose = document.getElementById('ff-purpose').value.trim();
+  if (!clientId || !dtVal || !purpose) return;
+
+  // datetime-local gives local time with no offset — new Date() on it
+  // interprets it as local, which is what we want to send as an ISO string.
+  const scheduledAt = new Date(dtVal).toISOString();
+
+  const url = followupId ? `/api/followups/${encodeURIComponent(followupId)}` : '/api/followups';
+  const method = followupId ? 'PUT' : 'POST';
+
+  const res = await fetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ clientId, scheduledAt, purpose }),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    alert(data.error || 'Failed to save follow-up.');
+    return;
+  }
+
+  closeFollowupModal();
+  await refreshAfterChange();
+});
+
+async function setFollowupStatus(followupId, status) {
+  await fetch(`/api/followups/${encodeURIComponent(followupId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  });
+  await refreshAfterChange();
+}
+
+async function deleteFollowup(followupId) {
+  if (!confirm('Delete this follow-up?')) return;
+  await fetch(`/api/followups/${encodeURIComponent(followupId)}`, { method: 'DELETE' });
+  await refreshAfterChange();
+}
+
+function shiftCalMonth(delta) {
+  calViewDate = new Date(calViewDate.getFullYear(), calViewDate.getMonth() + delta, 1);
+  renderCalendar();
+}
+document.getElementById('cal-prev').addEventListener('click', () => shiftCalMonth(-1));
+document.getElementById('cal-next').addEventListener('click', () => shiftCalMonth(1));
+document.getElementById('cal-today').addEventListener('click', () => { calViewDate = new Date(); renderCalendar(); });
+
+function renderCalendar() {
+  const year = calViewDate.getFullYear();
+  const month = calViewDate.getMonth();
+  const today = startOfDay(new Date());
+
+  document.getElementById('cal-month-label').textContent =
+    calViewDate.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+
+  // Group follow-ups by local calendar day (YYYY-MM-DD key).
+  const byDay = new Map();
+  allFollowups.forEach(f => {
+    if (!f.ScheduledAt) return;
+    const d = new Date(f.ScheduledAt);
+    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    if (!byDay.has(key)) byDay.set(key, []);
+    byDay.get(key).push(f);
+  });
+
+  const firstOfMonth = new Date(year, month, 1);
+  const gridStart = new Date(firstOfMonth);
+  gridStart.setDate(gridStart.getDate() - firstOfMonth.getDay()); // back up to Sunday
+
+  const cells = [];
+  for (let i = 0; i < 42; i++) {
+    const cellDate = new Date(gridStart);
+    cellDate.setDate(gridStart.getDate() + i);
+    cells.push(cellDate);
+  }
+  // Trim trailing rows that fall entirely in the next month.
+  while (cells.length > 35 && cells[cells.length - 7].getMonth() !== month) {
+    cells.splice(cells.length - 7, 7);
+  }
+
+  const daysBody = document.getElementById('cal-days-body');
+  daysBody.innerHTML = cells.map(cellDate => {
+    const key = `${cellDate.getFullYear()}-${cellDate.getMonth()}-${cellDate.getDate()}`;
+    const dayFollowups = (byDay.get(key) || []).slice().sort((a, b) => new Date(a.ScheduledAt) - new Date(b.ScheduledAt));
+    const isOtherMonth = cellDate.getMonth() !== month;
+    const isToday = startOfDay(cellDate).getTime() === today.getTime();
+    const isPast = startOfDay(cellDate) < today;
+    const classes = ['calendar-day'];
+    if (isOtherMonth) classes.push('other-month');
+    if (isToday) classes.push('today');
+    if (isPast) classes.push('past');
+
+    const shown = dayFollowups.slice(0, 3);
+    const extra = dayFollowups.length - shown.length;
+    const eventsHtml = shown.map(f => `
+      <div class="calendar-event ${f.Status === 'Done' ? 'done' : ''}"
+           title="${escapeHtml(f.ClientName || clientName(f.ClientID))}: ${escapeHtml(f.Purpose || '')}"
+           onclick="event.stopPropagation(); openFollowupModal({ followupId: '${f.FollowupID}', clientId: '${f.ClientID}', when: new Date('${f.ScheduledAt}'), purpose: ${JSON.stringify(f.Purpose || '')} })">
+        ${escapeHtml(formatTime(f.ScheduledAt))} · ${escapeHtml(f.ClientName || clientName(f.ClientID))}
+      </div>`).join('') + (extra > 0 ? `<div class="calendar-event-more">+${extra} more</div>` : '');
+
+    const clickHandler = isPast ? '' : `onclick="openFollowupModal({ when: new Date(${cellDate.getFullYear()}, ${cellDate.getMonth()}, ${cellDate.getDate()}, 9, 0) })"`;
+
+    return `
+      <div class="${classes.join(' ')}" ${clickHandler}>
+        <div class="calendar-day-num">${cellDate.getDate()}</div>
+        ${eventsHtml}
+      </div>`;
+  }).join('');
+
+  // ── Upcoming list: Scheduled follow-ups from right now onward, soonest first ──
+  const now = new Date();
+  const upcoming = allFollowups
+    .filter(f => f.Status !== 'Done' && f.ScheduledAt && new Date(f.ScheduledAt) >= now)
+    .slice()
+    .sort((a, b) => new Date(a.ScheduledAt) - new Date(b.ScheduledAt));
+
+  const upcomingBody = document.getElementById('cal-upcoming-body');
+  if (!upcoming.length) {
+    upcomingBody.innerHTML = '<p style="color:var(--ink-faint); font-size:13.5px;">No upcoming follow-ups scheduled.</p>';
+  } else {
+    upcomingBody.innerHTML = upcoming.map(f => `
+      <div class="upcoming-row">
+        <div class="when mono">${escapeHtml(formatDate(f.ScheduledAt, true))}</div>
+        <div class="name" onclick="openDetail('${f.ClientID}')">${escapeHtml(f.ClientName || clientName(f.ClientID))}</div>
+        <div class="purpose">${escapeHtml(f.Purpose || '')}</div>
+        <div class="row-actions">
+          <button class="ghost small" onclick="openFollowupModal({ followupId: '${f.FollowupID}', clientId: '${f.ClientID}', when: new Date('${f.ScheduledAt}'), purpose: ${JSON.stringify(f.Purpose || '')} })">Edit</button>
+          <button class="ghost small" onclick="setFollowupStatus('${f.FollowupID}', 'Done')">Mark done</button>
+          <button class="danger small" onclick="deleteFollowup('${f.FollowupID}')">&times;</button>
+        </div>
+      </div>`).join('');
+  }
 }
 
 // ─── Logout ──────────────────────────────────────────────────────────────
