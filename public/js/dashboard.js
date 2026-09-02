@@ -453,7 +453,7 @@ function renderTasks() {
       <div class="ledger-row task-grid">
         <div class="name" onclick="openDetail('${t.ClientID}')">${escapeHtml(t.ClientName || clientName(t.ClientID))}</div>
         <div>${escapeHtml(t.Description || '')}</div>
-        <div class="mono">${t.DueDate ? escapeHtml(formatDate(t.DueDate)) : '—'}</div>
+        <div><input type="date" class="mini-date" value="${t.DueDate ? escapeHtml(t.DueDate) : ''}" onchange="setTaskDueDate('${t.TaskID}', this.value)"></div>
         <div><span class="tag ${tagClass}">${label}</span></div>
         <div>${paymentSelectHtml(t)}</div>
         <div><input type="number" min="0" class="mini-amount" value="${Number(t.Amount) || 0}" onchange="setTaskAmount('${t.TaskID}', this.value)"></div>
@@ -488,6 +488,15 @@ async function setTaskAmount(taskId, amount) {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ amount }),
+  });
+  await refreshAfterChange();
+}
+
+async function setTaskDueDate(taskId, dueDate) {
+  await fetch(`/api/tasks/${encodeURIComponent(taskId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dueDate }),
   });
   await refreshAfterChange();
 }
@@ -1002,7 +1011,7 @@ function renderDetailTasks() {
     <div class="task-row">
       <input type="checkbox" ${t.Status === 'Done' ? 'checked' : ''} onchange="toggleDetailTask('${t.TaskID}', this.checked)">
       <div class="desc ${t.Status === 'Done' ? 'done' : ''}">${escapeHtml(t.Description)}</div>
-      ${t.DueDate ? `<div class="due mono">${escapeHtml(formatDate(t.DueDate))}</div>` : ''}
+      <input type="date" class="mini-date" value="${t.DueDate ? escapeHtml(t.DueDate) : ''}" onchange="setTaskDueDate('${t.TaskID}', this.value)">
       ${paymentSelectHtml(t)}
       <input type="number" min="0" class="mini-amount" value="${Number(t.Amount) || 0}" onchange="setTaskAmount('${t.TaskID}', this.value)">
       <button class="ghost small" onclick="deleteDetailTask('${t.TaskID}')">&times;</button>

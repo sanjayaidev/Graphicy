@@ -338,6 +338,16 @@ label {
   text-align: right;
 }
 
+.mini-date {
+  width: 128px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--ink);
+}
+
 .mini-notes {
   width: 100%;
   padding: 4px 8px;
