@@ -92,6 +92,7 @@ async function refreshAfterChange() {
     renderDetailTasks();
     renderDetailPayments();
     await loadDetailHistory(currentDetailId);
+    await loadDetailShareLinks(currentDetailId);
   }
 }
 
@@ -675,6 +676,7 @@ async function openDetail(id) {
   renderDetailTasks();
   renderDetailPayments();
   await loadDetailHistory(id);
+  await loadDetailShareLinks(id);
 }
 
 function renderDetailInfo(c) {
@@ -835,6 +837,89 @@ document.getElementById('detail-edit-btn').addEventListener('click', () => {
 document.getElementById('detail-delete-btn').addEventListener('click', () => {
   if (currentDetailId) deleteClient(currentDetailId);
 });
+
+// ─── Share links ─────────────────────────────────────────────────────────
+
+async function loadDetailShareLinks(clientId) {
+  const body = document.getElementById('detail-share-links-body');
+  body.innerHTML = '<div class="loading">Loading…</div>';
+  try {
+    const res = await fetch(`/api/clients/${encodeURIComponent(clientId)}/share-links`);
+    const links = await res.json();
+    if (!res.ok || !Array.isArray(links)) {
+      body.innerHTML = `<p style="color:var(--danger); font-size:13.5px;">${escapeHtml((links && links.error) || 'Could not load share links.')}</p>`;
+      return;
+    }
+    renderDetailShareLinks(links);
+  } catch (err) {
+    body.innerHTML = `<p style="color:var(--danger); font-size:13.5px;">${escapeHtml(err.message)}</p>`;
+  }
+}
+
+function renderDetailShareLinks(links) {
+  const body = document.getElementById('detail-share-links-body');
+  if (!links.length) {
+    body.innerHTML = '<p style="color:var(--ink-faint); font-size:13.5px;">No share links yet.</p>';
+    return;
+  }
+  const now = new Date();
+  body.innerHTML = links.map(l => {
+    const revoked = !!l.RevokedAt;
+    const expired = l.ExpiresAt && new Date(l.ExpiresAt) < now;
+    const inactive = revoked || expired;
+    const statusLabel = revoked ? 'Revoked' : (expired ? 'Expired' : 'Active');
+    const statusClass = revoked ? 'overdue' : (expired ? 'cold' : 'paid');
+    return `
+      <div class="task-row">
+        <div class="desc ${inactive ? 'done' : ''}">
+          <span class="mono">${escapeHtml(l.TokenPrefix)}…</span>
+          ${l.Label ? ' — ' + escapeHtml(l.Label) : ''}
+          <div class="sub" style="font-size:12px;">${l.AccessCount || 0} view${l.AccessCount === 1 ? '' : 's'}${l.LastAccessedAt ? ' · last ' + formatDate(l.LastAccessedAt) : ''}</div>
+        </div>
+        <span class="tag ${statusClass}">${statusLabel}</span>
+        ${!inactive ? `<button class="ghost small" onclick="revokeDetailShareLink('${l.LinkID}')">Revoke</button>` : ''}
+      </div>`;
+  }).join('');
+}
+
+document.getElementById('detail-add-share-btn').addEventListener('click', async () => {
+  if (!currentDetailId) return;
+  const label = document.getElementById('detail-new-share-label').value.trim();
+
+  const res = await fetch(`/api/clients/${encodeURIComponent(currentDetailId)}/share-links`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    alert(data.error || 'Failed to create share link.');
+    return;
+  }
+
+  const url = `${window.location.origin}/share.html?token=${data.token}`;
+  document.getElementById('detail-new-share-label').value = '';
+
+  // Copy to clipboard if available, and always show it so it can be
+  // copied manually — this is the only time the raw token is ever visible.
+  try {
+    await navigator.clipboard.writeText(url);
+    alert(`Link copied to clipboard:\n\n${url}\n\nThis is the only time this link will be shown — save it now.`);
+  } catch {
+    prompt('Copy this link now — it will not be shown again:', url);
+  }
+
+  await loadDetailShareLinks(currentDetailId);
+});
+
+async function revokeDetailShareLink(linkId) {
+  if (!currentDetailId) return;
+  if (!confirm('Revoke this link? Anyone using it will immediately lose access.')) return;
+  await fetch(`/api/clients/${encodeURIComponent(currentDetailId)}/share-links/${encodeURIComponent(linkId)}`, {
+    method: 'DELETE',
+  });
+  await loadDetailShareLinks(currentDetailId);
+}
 
 // ─── Logout ──────────────────────────────────────────────────────────────
 

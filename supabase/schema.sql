@@ -59,6 +59,25 @@ create index if not exists ga_tasks_client_id_idx    on ga_tasks(client_id);
 create index if not exists ga_payments_client_id_idx on ga_payments(client_id);
 create index if not exists ga_history_client_id_idx  on ga_history(client_id);
 
+-- ── Share links ────────────────────────────────────────────────────────
+-- See supabase/share_links.sql for full design notes. Included here too so
+-- a fresh install only has to run this one file.
+create table if not exists ga_share_links (
+  id                uuid primary key default gen_random_uuid(),
+  client_id         uuid not null references ga_clients(id) on delete cascade,
+  token_hash        text not null unique,
+  token_prefix      text not null,
+  label             text,
+  expires_at        timestamptz,
+  revoked_at        timestamptz,
+  last_accessed_at  timestamptz,
+  access_count      int not null default 0,
+  created_at        timestamptz not null default now()
+);
+create index if not exists ga_share_links_client_id_idx  on ga_share_links(client_id);
+create index if not exists ga_share_links_token_hash_idx on ga_share_links(token_hash);
+alter table ga_share_links enable row level security;
+
 -- ── Row Level Security ────────────────────────────────────────────────
 -- The Node backend talks to Supabase with the SERVICE ROLE key (server-side
 -- only, never shipped to the browser), which bypasses RLS entirely. Enabling

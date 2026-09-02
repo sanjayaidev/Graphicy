@@ -9,6 +9,7 @@ const authRoutes = require('./routes/auth');
 const clientRoutes = require('./routes/clients');
 const taskRoutes = require('./routes/tasks');
 const paymentRoutes = require('./routes/payments');
+const shareRoutes = require('./routes/share');
 
 const app = express();
 
@@ -18,6 +19,10 @@ app.use(cookieParser(process.env.SESSION_SECRET || 'dev-secret-change-me'));
 // Auth routes (no auth required to reach these)
 app.use('/api/auth', authRoutes);
 
+// Public, read-only share endpoint — deliberately mounted WITHOUT
+// requireAuth. See routes/share.js and lib/supabase.js#getSharedClientView.
+app.use('/api/share', shareRoutes);
+
 // Everything else under /api requires login
 app.use('/api/clients', requireAuth, clientRoutes);
 app.use('/api/tasks', requireAuth, taskRoutes);
@@ -26,7 +31,7 @@ app.use('/api/payments', requireAuth, paymentRoutes);
 // Static frontend
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Page routes: protect everything except login.html
+// Page routes: protect everything except login.html and the public share page
 app.get('/', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
@@ -36,6 +41,9 @@ app.get('/client.html', requireAuth, (req, res) => {
 app.get('/dashboard.html', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
+// share.html is intentionally NOT behind requireAuth — it's the page a
+// client opens from their share link and authenticates via the token in
+// the URL instead of a login cookie.
 
 // Error handler
 app.use((err, req, res, next) => {
