@@ -12,6 +12,7 @@
 <div class="wa-screen" id="screen-list">
   <div class="wa-topbar">
     <div class="wa-topbar-title">Chats</div>
+    <button class="wa-icon-btn" id="numbers-settings-btn" title="Numbers to show">🔢</button>
     <button class="wa-icon-btn" id="lang-settings-btn" title="Your language">
       <span id="my-lang-badge">EN</span>
     </button>
@@ -50,6 +51,25 @@
     <textarea id="compose-input" placeholder="Type a message" rows="1"></textarea>
     <button class="wa-icon-btn wa-translate-btn" id="translate-btn" title="Translate before sending">🌐</button>
     <button class="wa-send-btn" id="send-btn" title="Send">➤</button>
+  </div>
+</div>
+
+<!-- ═══════════════════ Screen 3: Numbers filter ═══════════════════ -->
+<div class="wa-screen wa-hidden" id="screen-numbers">
+  <div class="wa-topbar wa-topbar-thread">
+    <button class="wa-icon-btn" id="numbers-back-btn">‹</button>
+    <div class="wa-topbar-title-block">
+      <div class="wa-topbar-title">Numbers to show</div>
+      <div class="wa-topbar-sub">Empty list = show every chat</div>
+    </div>
+  </div>
+  <div class="wa-numbers-form">
+    <input type="text" id="number-input" placeholder="Phone number, e.g. 14155551234" inputmode="tel">
+    <input type="text" id="number-label-input" placeholder="Label (optional) — e.g. Jane">
+    <button id="number-add-btn">Add number</button>
+  </div>
+  <div class="wa-numbers-list" id="numbers-list">
+    <div class="wa-empty">Loading…</div>
   </div>
 </div>
 

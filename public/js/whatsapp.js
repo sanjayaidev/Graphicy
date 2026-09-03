@@ -3,15 +3,21 @@
 
 const POLL_MS = 4000;
 
+const MESSAGES_PAGE_SIZE = 50;
+
 let chats = [];
 let languages = [];
+let numbers = [];
 let activeChat = null; // { jid, name, phone }
 let pollTimer = null;
 let lastRenderedMessageIds = new Set();
 let draftOriginalText = null; // set when the compose box currently holds a translation
+let oldestLoadedOffset = 0;   // how many messages back we've paged into history
+let allHistoryLoaded = false; // true once "load earlier" runs dry
 
 const screenList = document.getElementById('screen-list');
 const screenThread = document.getElementById('screen-thread');
+const screenNumbers = document.getElementById('screen-numbers');
 const chatListEl = document.getElementById('chat-list');
 const chatSearchEl = document.getElementById('chat-search');
 const messagesEl = document.getElementById('wa-messages');
@@ -26,6 +32,10 @@ const translateStrip = document.getElementById('translate-strip');
 const translateStripLang = document.getElementById('translate-strip-lang');
 const translateStripOriginal = document.getElementById('translate-strip-original');
 const myLangBadge = document.getElementById('my-lang-badge');
+const numbersListEl = document.getElementById('numbers-list');
+const numberInput = document.getElementById('number-input');
+const numberLabelInput = document.getElementById('number-label-input');
+const numberAddBtn = document.getElementById('number-add-btn');
 
 function getMyLang() {
   return localStorage.getItem('wa_my_lang') || 'en';
@@ -141,6 +151,24 @@ chatSearchEl.addEventListener('input', () => {
 
 // ─── Thread ─────────────────────────────────────────────────────────────
 
+let threadMessagesMap = new Map(); // id (or synthetic key) -> message, for the active chat only
+
+function messageKey(m) {
+  return m.id || `${m.timestamp || ''}|${m.text || ''}|${m.fromMe ? 1 : 0}`;
+}
+
+function mergeMessages(msgs) {
+  msgs.forEach((m) => threadMessagesMap.set(messageKey(m), m));
+}
+
+function sortedThreadMessages() {
+  return Array.from(threadMessagesMap.values()).sort((a, b) => {
+    const ta = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+    const tb = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+    return ta - tb;
+  });
+}
+
 function openThread(chat) {
   activeChat = chat;
   threadNameEl.textContent = chat.clientName || chat.name || chat.phone;
@@ -149,6 +177,9 @@ function openThread(chat) {
   screenList.classList.add('wa-hidden');
   screenThread.classList.remove('wa-hidden');
   lastRenderedMessageIds = new Set();
+  threadMessagesMap = new Map();
+  oldestLoadedOffset = 0;
+  allHistoryLoaded = false;
   messagesEl.innerHTML = '<div class="wa-empty">Loading messages…</div>';
   clearDraftTranslation();
   loadMessages();
@@ -164,11 +195,14 @@ document.getElementById('back-btn').addEventListener('click', () => {
   loadChats(); // refresh previews/unread counts
 });
 
+// Polls the newest page of messages for the active chat.
 async function loadMessages() {
   if (!activeChat) return;
   try {
-    const msgs = await api(`/chats/${encodeURIComponent(activeChat.jid)}/messages?limit=50`);
-    renderMessages(msgs);
+    const msgs = await api(`/chats/${encodeURIComponent(activeChat.jid)}/messages?limit=${MESSAGES_PAGE_SIZE}&offset=0`);
+    mergeMessages(msgs);
+    oldestLoadedOffset = Math.max(oldestLoadedOffset, threadMessagesMap.size);
+    renderMessages();
   } catch (err) {
     if (!lastRenderedMessageIds.size) {
       messagesEl.innerHTML = `<div class="wa-empty">${escapeHtml(err.message)}</div>`;
@@ -176,18 +210,55 @@ async function loadMessages() {
   }
 }
 
-function renderMessages(msgs) {
-  const ids = msgs.map((m) => m.id).join(',');
+// Pages further back into history ("Load earlier messages" button) and
+// prepends the result, so the whole thread is reachable, not just the
+// most recent MESSAGES_PAGE_SIZE messages.
+async function loadEarlierMessages() {
+  if (!activeChat || allHistoryLoaded) return;
+  const btn = document.getElementById('load-earlier-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
+  const prevScrollHeight = messagesEl.scrollHeight;
+  try {
+    const msgs = await api(`/chats/${encodeURIComponent(activeChat.jid)}/messages?limit=${MESSAGES_PAGE_SIZE}&offset=${oldestLoadedOffset}`);
+    if (!msgs.length) {
+      allHistoryLoaded = true;
+    } else {
+      const sizeBefore = threadMessagesMap.size;
+      mergeMessages(msgs);
+      oldestLoadedOffset += MESSAGES_PAGE_SIZE;
+      if (threadMessagesMap.size === sizeBefore) allHistoryLoaded = true; // nothing new came back
+    }
+    renderMessages({ preserveScrollFrom: prevScrollHeight });
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Load earlier messages'; }
+  }
+}
+
+function renderMessages(opts = {}) {
+  const msgs = sortedThreadMessages();
   const wasAtBottom = messagesEl.scrollTop + messagesEl.clientHeight >= messagesEl.scrollHeight - 40;
 
-  messagesEl.innerHTML = msgs.map((m) => bubbleHtml(m)).join('') || '<div class="wa-empty">No messages yet — say hello 👋</div>';
+  const loadMoreHtml = msgs.length && !allHistoryLoaded
+    ? '<button class="wa-load-more" id="load-earlier-btn">Load earlier messages</button>'
+    : '';
+
+  messagesEl.innerHTML = loadMoreHtml + (msgs.map((m) => bubbleHtml(m)).join('') || '<div class="wa-empty">No messages yet — say hello 👋</div>');
+
+  const loadMoreBtn = document.getElementById('load-earlier-btn');
+  if (loadMoreBtn) loadMoreBtn.addEventListener('click', loadEarlierMessages);
 
   messagesEl.querySelectorAll('.wa-bubble-translate-btn').forEach((btn) => {
     btn.addEventListener('click', () => showLangChips(btn));
   });
 
   lastRenderedMessageIds = new Set(msgs.map((m) => m.id));
-  if (wasAtBottom) messagesEl.scrollTop = messagesEl.scrollHeight;
+
+  if (opts.preserveScrollFrom !== undefined) {
+    // Keep the same message in view after prepending older messages above it.
+    messagesEl.scrollTop = messagesEl.scrollHeight - opts.preserveScrollFrom;
+  } else if (wasAtBottom) {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
 }
 
 function bubbleHtml(m) {
@@ -310,6 +381,88 @@ composeInput.addEventListener('keydown', (e) => {
     e.preventDefault();
     sendMessage();
   }
+});
+
+// ─── Numbers filter ─────────────────────────────────────────────────────
+// Lets you cap the chat list down to just the numbers you care about.
+// Empty list = unfiltered (server shows every GoWA chat) — see
+// GET /api/whatsapp/chats in routes/whatsapp.js.
+
+async function loadNumbers() {
+  try {
+    numbers = await api('/numbers');
+    renderNumbers();
+  } catch (err) {
+    numbersListEl.innerHTML = `<div class="wa-empty">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function renderNumbers() {
+  if (!numbers.length) {
+    numbersListEl.innerHTML = '<div class="wa-empty">No numbers added — every chat is shown.</div>';
+    return;
+  }
+  numbersListEl.innerHTML = numbers.map((n) => `
+    <div class="wa-number-row" data-id="${escapeHtml(n.Id)}">
+      <div class="wa-number-row-text">
+        <div class="wa-number-row-number">${escapeHtml(n.Number)}</div>
+        ${n.Label ? `<div class="wa-number-row-label">${escapeHtml(n.Label)}</div>` : ''}
+      </div>
+      <button class="wa-number-remove-btn" data-id="${escapeHtml(n.Id)}">Remove</button>
+    </div>
+  `).join('');
+
+  numbersListEl.querySelectorAll('.wa-number-remove-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = '…';
+      try {
+        await api(`/numbers/${encodeURIComponent(btn.dataset.id)}`, { method: 'DELETE' });
+        await loadNumbers();
+      } catch (err) {
+        alert('Failed to remove: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Remove';
+      }
+    });
+  });
+}
+
+document.getElementById('numbers-settings-btn').addEventListener('click', () => {
+  screenList.classList.add('wa-hidden');
+  screenNumbers.classList.remove('wa-hidden');
+  loadNumbers();
+});
+
+document.getElementById('numbers-back-btn').addEventListener('click', () => {
+  screenNumbers.classList.add('wa-hidden');
+  screenList.classList.remove('wa-hidden');
+  loadChats(); // re-apply the (possibly changed) filter
+});
+
+numberAddBtn.addEventListener('click', async () => {
+  const number = numberInput.value.trim();
+  if (!number) return;
+  numberAddBtn.disabled = true;
+  numberAddBtn.textContent = 'Adding…';
+  try {
+    await api('/numbers', {
+      method: 'POST',
+      body: JSON.stringify({ number, label: numberLabelInput.value.trim() }),
+    });
+    numberInput.value = '';
+    numberLabelInput.value = '';
+    await loadNumbers();
+  } catch (err) {
+    alert('Failed to add: ' + err.message);
+  } finally {
+    numberAddBtn.disabled = false;
+    numberAddBtn.textContent = 'Add number';
+  }
+});
+
+numberInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); numberAddBtn.click(); }
 });
 
 // ─── Boot ───────────────────────────────────────────────────────────────

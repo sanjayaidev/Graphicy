@@ -118,3 +118,17 @@ create table if not exists ga_followups (
 create index if not exists ga_followups_client_id_idx     on ga_followups(client_id);
 create index if not exists ga_followups_scheduled_at_idx  on ga_followups(scheduled_at);
 alter table ga_followups enable row level security;
+
+-- ── WhatsApp number filter (Messages tab) ──────────────────────────────
+-- See supabase/whatsapp_numbers.sql for full design notes. Included here
+-- too so a fresh install only has to run this one file. Empty table = no
+-- filter applied, so the Messages tab keeps showing every GoWA chat until
+-- you add at least one number.
+create table if not exists ga_whatsapp_numbers (
+  id         uuid primary key default gen_random_uuid(),
+  number     text not null,
+  label      text,
+  created_at timestamptz not null default now()
+);
+create unique index if not exists ga_whatsapp_numbers_number_idx on ga_whatsapp_numbers (number);
+alter table ga_whatsapp_numbers enable row level security;
