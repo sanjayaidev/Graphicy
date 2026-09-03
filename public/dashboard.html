@@ -323,6 +323,14 @@
     <form id="client-form">
       <input type="hidden" id="f-id">
       <div class="modal-grid">
+        <div class="field" style="grid-column: 1 / -1; display:flex; align-items:center; gap:14px;">
+          <img id="f-photo-preview" src="" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover;display:none;border:1px solid var(--line);">
+          <div id="f-photo-placeholder" style="width:64px;height:64px;border-radius:50%;background:var(--line-soft);display:flex;align-items:center;justify-content:center;color:var(--ink-faint);font-size:12px;">Photo</div>
+          <div>
+            <input type="file" id="f-photo" accept="image/*" style="max-width:220px;">
+            <div class="sub" style="margin-top:4px;">Uploaded to ImgBB, saved once you submit this form.</div>
+          </div>
+        </div>
         <div class="field"><label>Name</label><input id="f-name" required></div>
         <div class="field"><label>Number</label><input id="f-number"></div>
         <div class="field"><label>Country</label><input id="f-country"></div>

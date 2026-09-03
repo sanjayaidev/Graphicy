@@ -20,6 +20,7 @@ create table if not exists ga_clients (
   chance         int,                -- 0–100
   bulk_billing   boolean not null default false, -- pays a lump sum / flat fee, not tracked per task
   notes          text,
+  image_url      text,               -- client photo, hosted on ImgBB (see lib/imgbb.js)
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now()
 );
