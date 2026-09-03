@@ -15,7 +15,7 @@ const whatsappRoutes = require('./routes/whatsapp');
 
 const app = express();
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' })); // client photos arrive as base64 JSON
 app.use(cookieParser(process.env.SESSION_SECRET || 'dev-secret-change-me'));
 
 // Auth routes (no auth required to reach these)

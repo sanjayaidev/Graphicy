@@ -321,8 +321,33 @@ function openCreate() {
   document.getElementById('modal-save').textContent = 'Save client';
   document.getElementById('client-form').reset();
   document.getElementById('f-id').value = '';
+  resetPhotoField();
   document.getElementById('client-modal').classList.add('open');
 }
+
+function resetPhotoField(imageUrl) {
+  const fileInput = document.getElementById('f-photo');
+  const preview = document.getElementById('f-photo-preview');
+  const placeholder = document.getElementById('f-photo-placeholder');
+  fileInput.value = '';
+  if (imageUrl) {
+    preview.src = imageUrl;
+    preview.style.display = '';
+    placeholder.style.display = 'none';
+  } else {
+    preview.src = '';
+    preview.style.display = 'none';
+    placeholder.style.display = '';
+  }
+}
+
+document.getElementById('f-photo').addEventListener('change', () => {
+  const file = document.getElementById('f-photo').files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => resetPhotoField(reader.result);
+  reader.readAsDataURL(file);
+});
 
 function openEdit(id) {
   const c = allClients.find(x => String(x.UniqueID) === String(id));
@@ -342,6 +367,7 @@ function openEdit(id) {
   document.getElementById('f-bulk-billing').checked = !!c.BulkBilling;
   document.getElementById('f-action').value = c.Action || '';
   document.getElementById('f-notes').value = c.Notes || '';
+  resetPhotoField(c.ImageUrl || '');
   document.getElementById('client-modal').classList.add('open');
 }
 
@@ -391,6 +417,32 @@ document.getElementById('client-form').addEventListener('submit', async (e) => {
     const data = await res.json().catch(() => ({}));
     alert(data.error || 'Failed to save client.');
     return;
+  }
+
+  const saved = await res.json();
+  const clientId = editingId || saved.UniqueID;
+
+  const photoFile = document.getElementById('f-photo').files[0];
+  if (photoFile) {
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(photoFile);
+      });
+      const photoRes = await fetch(`/api/clients/${encodeURIComponent(clientId)}/photo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: dataUrl }),
+      });
+      if (!photoRes.ok) {
+        const data = await photoRes.json().catch(() => ({}));
+        alert('Client saved, but photo upload failed: ' + (data.error || 'unknown error'));
+      }
+    } catch (err) {
+      alert('Client saved, but photo upload failed: ' + err.message);
+    }
   }
 
   closeModal();

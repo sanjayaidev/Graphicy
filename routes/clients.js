@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../lib/supabase');
+const imgbb = require('../lib/imgbb');
 
 // GET /api/clients
 router.get('/', async (req, res, next) => {
@@ -80,6 +81,21 @@ router.post('/:id/share-links', async (req, res, next) => {
 router.delete('/:id/share-links/:linkId', async (req, res, next) => {
   try {
     res.json(await db.revokeShareLink(req.params.linkId));
+  } catch (err) { next(err); }
+});
+
+// POST /api/clients/:id/photo  { image: "data:image/png;base64,..." }
+// Uploads to ImgBB and stores the returned URL on the client record.
+router.post('/:id/photo', async (req, res, next) => {
+  try {
+    const { image } = req.body || {};
+    if (!image) {
+      const e = new Error('image (base64 or data URL) is required');
+      e.status = 400;
+      throw e;
+    }
+    const { url } = await imgbb.uploadImage(image);
+    res.json(await db.updateClient(req.params.id, { ImageUrl: url }));
   } catch (err) { next(err); }
 });
 
