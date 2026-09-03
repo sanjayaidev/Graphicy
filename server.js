@@ -11,6 +11,7 @@ const taskRoutes = require('./routes/tasks');
 const paymentRoutes = require('./routes/payments');
 const followupRoutes = require('./routes/followups');
 const shareRoutes = require('./routes/share');
+const whatsappRoutes = require('./routes/whatsapp');
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.use('/api/clients', requireAuth, clientRoutes);
 app.use('/api/tasks', requireAuth, taskRoutes);
 app.use('/api/payments', requireAuth, paymentRoutes);
 app.use('/api/followups', requireAuth, followupRoutes);
+app.use('/api/whatsapp', requireAuth, whatsappRoutes);
 
 // Static frontend
 app.use(express.static(path.join(__dirname, 'public')));
@@ -42,6 +44,11 @@ app.get('/client.html', requireAuth, (req, res) => {
 });
 app.get('/dashboard.html', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+// Mobile-app-style WhatsApp page — this is the URL to point a webview
+// wrapper app at (e.g. https://yourapp.com/whatsapp.html).
+app.get('/whatsapp.html', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'whatsapp.html'));
 });
 // share.html is intentionally NOT behind requireAuth — it's the page a
 // client opens from their share link and authenticates via the token in

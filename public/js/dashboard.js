@@ -260,22 +260,29 @@ function getFilteredClients() {
   });
 }
 
+function clientInitials(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  const first = parts[0][0] || '';
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
+  return (first + last).toUpperCase();
+}
+
 function clientCardHtml(c) {
   const chance = Number(c.Chance) || 0;
   const statusClass = (c.Type || '').toLowerCase();
   return `
-    <div class="panel" style="cursor:pointer;" onclick="openDetail('${c.UniqueID}')">
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
-        <div>
+    <div class="client-card" onclick="openDetail('${c.UniqueID}')">
+      <div class="card-top">
+        <div class="avatar">${clientInitials(c.Name)}</div>
+        <div class="card-top-text">
           <div class="name">${escapeHtml(c.Name)}</div>
           <div class="sub">${escapeHtml(c.Business || '')}${c.Service ? ' · ' + escapeHtml(c.Service) : ''}${c.Platform ? ' · ' + escapeHtml(c.Platform) : ''}</div>
         </div>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <span class="tag ${statusClass}">${escapeHtml(c.Type || '—')}</span>
-        </div>
+        <span class="tag ${statusClass}">${escapeHtml(c.Type || '—')}</span>
       </div>
-      ${c.Action ? `<div class="sub" style="margin-top:10px;"><strong>Next action:</strong> ${escapeHtml(c.Action)}</div>` : ''}
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+      ${c.Action ? `<div class="card-action"><strong>Next:</strong> ${escapeHtml(c.Action)}</div>` : ''}
+      <div class="card-bottom">
         <div class="chance-meter">
           <div class="bar"><span style="width:${chance}%"></span></div>
           <span class="num mono">${chance}%</span>

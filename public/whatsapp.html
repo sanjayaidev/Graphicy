@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Messages — ClientPM</title>
+<link rel="stylesheet" href="/css/whatsapp-mobile.css">
+</head>
+<body>
+
+<!-- ═══════════════════ Screen 1: Chat list ═══════════════════ -->
+<div class="wa-screen" id="screen-list">
+  <div class="wa-topbar">
+    <div class="wa-topbar-title">Chats</div>
+    <button class="wa-icon-btn" id="lang-settings-btn" title="Your language">
+      <span id="my-lang-badge">EN</span>
+    </button>
+  </div>
+  <div class="wa-search">
+    <input type="text" id="chat-search" placeholder="Search clients or numbers">
+  </div>
+  <div class="wa-chat-list" id="chat-list">
+    <div class="wa-empty">Loading chats…</div>
+  </div>
+</div>
+
+<!-- ═══════════════════ Screen 2: Thread ═══════════════════ -->
+<div class="wa-screen wa-hidden" id="screen-thread">
+  <div class="wa-topbar wa-topbar-thread">
+    <button class="wa-icon-btn" id="back-btn">‹</button>
+    <div class="wa-avatar" id="thread-avatar">?</div>
+    <div class="wa-topbar-title-block">
+      <div class="wa-topbar-title" id="thread-name">—</div>
+      <div class="wa-topbar-sub" id="thread-phone">—</div>
+    </div>
+  </div>
+  <div class="wa-messages" id="wa-messages">
+    <div class="wa-empty">Loading messages…</div>
+  </div>
+
+  <!-- Translation preview strip: shown above the compose bar when the
+       draft has been translated but not yet sent. -->
+  <div class="wa-translate-strip wa-hidden" id="translate-strip">
+    <span>Translated to <strong id="translate-strip-lang"></strong> — original: <span id="translate-strip-original"></span></span>
+    <button id="translate-revert-btn">Undo</button>
+  </div>
+
+  <div class="wa-compose">
+    <select id="target-lang-select" class="wa-lang-select" title="Translate outgoing message to…"></select>
+    <textarea id="compose-input" placeholder="Type a message" rows="1"></textarea>
+    <button class="wa-icon-btn wa-translate-btn" id="translate-btn" title="Translate before sending">🌐</button>
+    <button class="wa-send-btn" id="send-btn" title="Send">➤</button>
+  </div>
+</div>
+
+<script src="/js/whatsapp.js"></script>
+</body>
+</html>

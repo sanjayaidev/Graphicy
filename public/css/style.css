@@ -693,12 +693,90 @@ label {
   overflow: hidden;
 }
 
-/* ─── Card list ─────────────────────────────────────────────── */
+/* ─── Card list (client grid) ───────────────────────────────── */
 
 .card-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.client-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
   display: flex;
   flex-direction: column;
+  gap: 14px;
+}
+.client-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--ink-faint);
+}
+.client-card .card-top {
+  display: flex;
+  align-items: flex-start;
   gap: 12px;
+}
+.client-card .avatar {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Newsreader', serif;
+  font-weight: 600;
+  font-size: 16px;
+}
+.client-card .card-top-text { flex: 1; min-width: 0; }
+.client-card .name {
+  font-family: 'Newsreader', serif;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.client-card .sub {
+  color: var(--ink-soft);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+.client-card .card-action {
+  font-size: 13px;
+  color: var(--ink-soft);
+  background: var(--line-soft);
+  border-radius: 6px;
+  padding: 8px 10px;
+  line-height: 1.4;
+}
+.client-card .card-action strong { color: var(--ink); font-weight: 600; }
+.client-card .card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: auto;
+}
+.client-card .row-actions { opacity: 0; transition: opacity 0.12s ease; }
+.client-card:hover .row-actions,
+.client-card:focus-within .row-actions { opacity: 1; }
+@media (hover: none) {
+  .client-card .row-actions { opacity: 1; }
 }
 
 /* ─── Task grid header ──────────────────────────────────────── */
