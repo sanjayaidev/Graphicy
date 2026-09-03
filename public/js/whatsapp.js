@@ -171,8 +171,8 @@ function sortedThreadMessages() {
 
 function openThread(chat) {
   activeChat = chat;
-  threadNameEl.textContent = chat.clientName || chat.name || chat.phone;
-  threadPhoneEl.textContent = chat.phone;
+  threadNameEl.textContent = chat.clientName || chat.name || chat.phone || 'Unknown';
+  threadPhoneEl.textContent = chat.phone || (chat.kind === 'group' ? 'Group chat' : chat.kind === 'lid' ? 'Privacy-protected number' : '—');
   threadAvatarEl.textContent = initials(chat.clientName || chat.name || chat.phone);
   screenList.classList.add('wa-hidden');
   screenThread.classList.remove('wa-hidden');

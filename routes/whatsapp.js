@@ -19,33 +19,47 @@ router.get('/status', async (req, res, next) => {
 // have been added on the Numbers tab (ga_whatsapp_numbers), the result is
 // filtered down to just those numbers; an empty filter list means "show
 // everything", so this is a no-op until the user opts in.
+//
+// Name resolution order per chat: ga_clients match > GoWA's own
+// name/push_name > GoWA's synced contacts > a readable fallback (never a
+// raw jid) — see lib/gowa.js#jidKind for why group/@lid chats don't have
+// a phone number to key off of in the first place.
 router.get('/chats', async (req, res, next) => {
   try {
-    const [chats, clients, allowed] = await Promise.all([
+    const [chats, clients, allowed, contacts] = await Promise.all([
       gowa.getChats(),
       db.getClients(),
       db.getWhatsappNumbers(),
+      gowa.getContacts(),
     ]);
-    const byPhone = new Map(
+    const clientByPhone = new Map(
       clients
         .filter((c) => c.Number)
         .map((c) => [String(c.Number).replace(/[^\d]/g, ''), c])
     );
+    const contactNameByPhone = new Map(contacts.map((c) => [c.phone, c.name]));
     const allowedSet = new Set(allowed.map((n) => n.Number));
 
     let merged = chats.map((c) => {
-      const phone = gowa.jidToPhone(c.jid);
-      const client = byPhone.get(phone);
+      const client = c.phone ? clientByPhone.get(c.phone) : null;
+      const contactName = c.phone ? contactNameByPhone.get(c.phone) : null;
+      let fallbackName;
+      if (c.kind === 'group') fallbackName = 'Group chat';
+      else if (c.kind === 'lid') fallbackName = 'Unknown number (privacy-protected)';
+      else fallbackName = c.phone || 'Unknown';
+
       return {
         ...c,
-        phone,
         clientId: client ? client.UniqueID : null,
         clientName: client ? client.Name : null,
+        name: c.name || contactName || fallbackName,
       };
     });
 
     if (allowedSet.size) {
-      merged = merged.filter((c) => allowedSet.has(c.phone));
+      // Group/@lid chats never have a matchable phone number, so they're
+      // excluded once a filter is set — there's no "number" to add them by.
+      merged = merged.filter((c) => c.phone && allowedSet.has(c.phone));
     }
 
     res.json(merged);
