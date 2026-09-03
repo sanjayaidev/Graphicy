@@ -36,6 +36,8 @@ const numbersListEl = document.getElementById('numbers-list');
 const numberInput = document.getElementById('number-input');
 const numberLabelInput = document.getElementById('number-label-input');
 const numberAddBtn = document.getElementById('number-add-btn');
+const contactSearchInput = document.getElementById('contact-search-input');
+const contactResultsEl = document.getElementById('contact-results');
 
 function getMyLang() {
   return localStorage.getItem('wa_my_lang') || 'en';
@@ -116,6 +118,9 @@ function renderChatList(list) {
   }
   chatListEl.innerHTML = list.map((c) => {
     const displayName = c.clientName || c.name || c.phone;
+    // Show the number alongside the name whenever the name isn't already
+    // just the number (group/lid chats have no phone to show).
+    const showPhone = c.phone && displayName !== c.phone;
     return `
       <div class="wa-chat-row" data-jid="${escapeHtml(c.jid)}">
         <div class="wa-avatar">${initials(displayName)}</div>
@@ -124,6 +129,7 @@ function renderChatList(list) {
             <div class="wa-chat-row-name">${escapeHtml(displayName)}</div>
             <div class="wa-chat-row-time">${formatTime(c.lastMessageTime)}</div>
           </div>
+          ${showPhone ? `<div class="wa-chat-row-phone">${escapeHtml(c.phone)}</div>` : ''}
           <div class="wa-chat-row-preview">${escapeHtml(c.lastMessage || '')}</div>
         </div>
         ${c.unread ? `<div class="wa-chat-row-unread">${c.unread}</div>` : ''}
@@ -464,6 +470,63 @@ numberAddBtn.addEventListener('click', async () => {
 numberInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); numberAddBtn.click(); }
 });
+
+// ─── Contact search (find the correct name + number before saving) ─────
+// Looks up GoWA's synced address book with includes-based (not exact)
+// matching on name or number, so "jane" finds "Jane Doe" and "9847" finds
+// any number containing those digits. Tapping a result pre-fills the
+// number + label inputs above with the real name, ready to Add.
+
+let contactSearchTimer = null;
+
+contactSearchInput.addEventListener('input', () => {
+  const q = contactSearchInput.value.trim();
+  clearTimeout(contactSearchTimer);
+  if (!q) {
+    contactResultsEl.classList.add('wa-hidden');
+    contactResultsEl.innerHTML = '';
+    return;
+  }
+  contactSearchTimer = setTimeout(() => runContactSearch(q), 250); // debounce while typing
+});
+
+async function runContactSearch(q) {
+  contactResultsEl.classList.remove('wa-hidden');
+  contactResultsEl.innerHTML = '<div class="wa-empty">Searching…</div>';
+  try {
+    const results = await api(`/contacts?q=${encodeURIComponent(q)}`);
+    renderContactResults(results);
+  } catch (err) {
+    contactResultsEl.innerHTML = `<div class="wa-empty">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function renderContactResults(results) {
+  if (!results.length) {
+    contactResultsEl.innerHTML = '<div class="wa-empty">No matching contacts.</div>';
+    return;
+  }
+  contactResultsEl.innerHTML = results.slice(0, 20).map((c) => `
+    <div class="wa-number-row wa-contact-result-row" data-phone="${escapeHtml(c.phone)}" data-name="${escapeHtml(c.name)}">
+      <div class="wa-number-row-text">
+        <div class="wa-number-row-number">${escapeHtml(c.name)}</div>
+        <div class="wa-number-row-label">${escapeHtml(c.phone)}</div>
+      </div>
+      <button class="wa-contact-use-btn" type="button">Use</button>
+    </div>
+  `).join('');
+
+  contactResultsEl.querySelectorAll('.wa-contact-result-row').forEach((row) => {
+    row.addEventListener('click', () => {
+      numberInput.value = row.dataset.phone;
+      numberLabelInput.value = row.dataset.name;
+      contactSearchInput.value = '';
+      contactResultsEl.classList.add('wa-hidden');
+      contactResultsEl.innerHTML = '';
+      numberLabelInput.focus();
+    });
+  });
+}
 
 // ─── Boot ───────────────────────────────────────────────────────────────
 

@@ -12,18 +12,45 @@ router.get('/status', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// Minimum digit length a saved filter number must have before it's used
+// for includes-matching. Without this, saving "1" or "91" would match
+// almost every phone number in the chat list (since <short>.includes and
+// includes(<short>) both go off basically everywhere) and the filter
+// would silently show "everything" instead of what was intended.
+const MIN_MATCH_DIGITS = 5;
+
+// Includes-based (NOT exact) match: a saved filter number matches a chat
+// phone if either one contains the other. This is deliberately loose so
+// that:
+//   - a saved number missing/using a different country code still matches
+//     (e.g. saved "9847012345" matches chat phone "919847012345")
+//   - you can save just a memorable/unique suffix instead of the full
+//     number
+// Guarded by MIN_MATCH_DIGITS so a too-short saved number doesn't match
+// everything.
+function findAllowedMatch(phone, allowed) {
+  if (!phone) return null;
+  return allowed.find((n) => {
+    const saved = n.Number;
+    if (!saved || saved.length < MIN_MATCH_DIGITS) return false;
+    return phone.includes(saved) || saved.includes(phone);
+  }) || null;
+}
+
 // GET /api/whatsapp/chats
 // Merges GoWA's (fully paginated) chat list with client names/ids from
 // ga_clients (matched by phone number), so the UI can show "Jane Doe"
 // instead of a raw number for anyone already in the ledger. If numbers
 // have been added on the Numbers tab (ga_whatsapp_numbers), the result is
-// filtered down to just those numbers; an empty filter list means "show
-// everything", so this is a no-op until the user opts in.
+// filtered down to just those numbers (includes-match, see
+// findAllowedMatch above — not an exact match); an empty filter list
+// means "show everything", so this is a no-op until the user opts in.
 //
-// Name resolution order per chat: ga_clients match > GoWA's own
-// name/push_name > GoWA's synced contacts > a readable fallback (never a
-// raw jid) — see lib/gowa.js#jidKind for why group/@lid chats don't have
-// a phone number to key off of in the first place.
+// Name resolution order per chat: an explicit Label saved on the Numbers
+// tab (you typed it on purpose, so it wins outright) > ga_clients match >
+// GoWA's own name/push_name > GoWA's synced contacts > a readable
+// fallback (never a raw jid) — see lib/gowa.js#jidKind for why group/@lid
+// chats don't have a phone number to key off of in the first place.
 router.get('/chats', async (req, res, next) => {
   try {
     const [chats, clients, allowed, contacts] = await Promise.all([
@@ -38,11 +65,11 @@ router.get('/chats', async (req, res, next) => {
         .map((c) => [String(c.Number).replace(/[^\d]/g, ''), c])
     );
     const contactNameByPhone = new Map(contacts.map((c) => [c.phone, c.name]));
-    const allowedSet = new Set(allowed.map((n) => n.Number));
 
     let merged = chats.map((c) => {
       const client = c.phone ? clientByPhone.get(c.phone) : null;
       const contactName = c.phone ? contactNameByPhone.get(c.phone) : null;
+      const allowedMatch = c.phone ? findAllowedMatch(c.phone, allowed) : null;
       let fallbackName;
       if (c.kind === 'group') fallbackName = 'Group chat';
       else if (c.kind === 'lid') fallbackName = 'Unknown number (privacy-protected)';
@@ -52,17 +79,39 @@ router.get('/chats', async (req, res, next) => {
         ...c,
         clientId: client ? client.UniqueID : null,
         clientName: client ? client.Name : null,
-        name: c.name || contactName || fallbackName,
+        name: (allowedMatch && allowedMatch.Label) || (client && client.Name) || c.name || contactName || fallbackName,
+        matched: !!allowedMatch,
       };
     });
 
-    if (allowedSet.size) {
+    if (allowed.length) {
       // Group/@lid chats never have a matchable phone number, so they're
       // excluded once a filter is set — there's no "number" to add them by.
-      merged = merged.filter((c) => c.phone && allowedSet.has(c.phone));
+      merged = merged.filter((c) => c.matched);
     }
+    merged = merged.map(({ matched, ...c }) => c); // internal-only flag, don't leak it to the client
 
     res.json(merged);
+  } catch (err) { next(err); }
+});
+
+// GET /api/whatsapp/contacts?q=jane
+// Looks up GoWA's synced address book (name + real phone number) so you
+// can find the *correct* number for someone before adding it to the
+// Numbers filter — matching is includes-based (substring, case-insensitive
+// on the name; digits-only substring on the number), not an exact match.
+// With no `q`, returns the full synced contact list.
+router.get('/contacts', async (req, res, next) => {
+  try {
+    const q = String(req.query.q || '').trim().toLowerCase();
+    const qDigits = q.replace(/[^\d]/g, '');
+    const contacts = await gowa.getContacts();
+    const results = q
+      ? contacts.filter((c) =>
+          c.name.toLowerCase().includes(q) || (qDigits && c.phone.includes(qDigits))
+        )
+      : contacts;
+    res.json(results.sort((a, b) => a.name.localeCompare(b.name)));
   } catch (err) { next(err); }
 });
 

@@ -127,6 +127,7 @@ html, body {
 .wa-chat-row-top { display: flex; justify-content: space-between; gap: 8px; }
 .wa-chat-row-name { font-weight: 600; font-size: 15.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wa-chat-row-time { font-size: 11.5px; color: var(--wa-text-soft); flex: none; }
+.wa-chat-row-phone { font-size: 12px; color: var(--wa-text-soft); margin-top: 1px; }
 .wa-chat-row-preview { font-size: 13.5px; color: var(--wa-text-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
 .wa-chat-row-unread {
   background: var(--wa-green-light);
@@ -357,6 +358,30 @@ html, body {
   font-size: 13px;
   font-weight: 600;
   padding: 6px 8px;
+  cursor: pointer;
+}
+
+/* Contact search results, shown inline in the "add number" form while
+   typing — reuses .wa-number-row styling, capped height + scroll so a
+   long match list doesn't push the Add button off screen. */
+.wa-contact-results {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--wa-line);
+  border-radius: 10px;
+  -webkit-overflow-scrolling: touch;
+}
+.wa-contact-result-row { cursor: pointer; }
+.wa-contact-result-row:active { background: var(--wa-line); }
+.wa-contact-use-btn {
+  flex: none;
+  border: none;
+  background: var(--wa-green);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 8px;
   cursor: pointer;
 }
 
