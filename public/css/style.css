@@ -600,6 +600,250 @@ label {
   }
 }
 
+@media (max-width: 600px) {
+  /* Shell and topbar */
+  .shell { padding: 0 16px 60px; }
+  .topbar {
+    flex-direction: column;
+    gap: 16px;
+    padding: 24px 0 16px;
+    align-items: flex-start;
+  }
+  .topbar-actions { width: 100%; justify-content: space-between; }
+  
+  /* Stat strip - single column on very small screens */
+  .stat-strip {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .stat { padding: 16px; }
+  .stat .value { font-size: 20px; }
+  
+  /* Toolbar - stack elements vertically */
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .toolbar input[type="search"],
+  .toolbar select {
+    max-width: 100%;
+    width: 100%;
+  }
+  .toolbar .date-range {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .toolbar .spacer { display: none; }
+  
+  /* Ledger - simplified view */
+  .ledger-row {
+    grid-template-columns: 28px 1fr 80px;
+    gap: 8px;
+    padding: 10px 8px;
+  }
+  .ledger-row .chance-col,
+  .ledger-row .status-note-col { display: none; }
+  .ledger-row .name { font-size: 14px; }
+  .ledger-row.head { display: none; }
+  
+  /* Card list - single column */
+  .card-list {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  /* Modal - full width with less padding */
+  .modal-backdrop { padding: 40px 12px; }
+  .modal {
+    margin: 0;
+    padding: 20px;
+    border-radius: 8px;
+  }
+  .modal h2 { font-size: 19px; margin-bottom: 18px; }
+  .modal-grid { grid-template-columns: 1fr; gap: 12px; }
+  
+  /* Login card */
+  .login-card {
+    width: 100%;
+    max-width: 340px;
+    padding: 32px 24px;
+  }
+  
+  /* Calendar - scrollable horizontally */
+  .calendar-grid {
+    grid-template-columns: repeat(7, minmax(40px, 1fr));
+    gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .calendar-day {
+    min-height: 60px;
+    padding: 4px;
+  }
+  .calendar-day-num { font-size: 11px; }
+  .calendar-event { font-size: 10px; padding: 1px 4px; }
+  
+  /* Upcoming row - stacked layout */
+  .upcoming-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .upcoming-row .when {
+    width: 100%;
+    font-size: 11.5px;
+  }
+  .upcoming-row .name {
+    width: auto;
+    flex: 1;
+    font-size: 14px;
+  }
+  .upcoming-row .purpose {
+    width: 100%;
+    font-size: 12.5px;
+  }
+  
+  /* Breakdown row - stacked */
+  .breakdown-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .breakdown-row .bar {
+    width: 100%;
+    height: 4px;
+  }
+  
+  /* Tabs - scrollable */
+  .tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+  }
+  .tab-btn {
+    padding: 10px 14px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  
+  /* Task, status, earnings grids - hide less important columns */
+  .task-grid,
+  .status-grid,
+  .earnings-grid {
+    display: block !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Buttons - full width for primary actions */
+  button.primary {
+    width: 100%;
+    padding: 10px 16px;
+  }
+  .modal-actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+  .modal-actions button {
+    width: 100%;
+  }
+  
+  /* Form inputs - better touch targets */
+  input, textarea, select {
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 11px 12px;
+  }
+  button {
+    padding: 10px 16px;
+    min-height: 44px; /* Touch target size */
+  }
+  button.small {
+    padding: 6px 12px;
+    font-size: 13px;
+    min-height: auto;
+  }
+  
+  /* Panel padding */
+  .panel {
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  
+  /* Info rows in detail view */
+  .info-row {
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 0;
+  }
+  .info-row .k,
+  .info-row .v {
+    text-align: left;
+  }
+  
+  /* Task and payment rows */
+  .task-row,
+  .payment-row {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 0;
+  }
+  .task-row .due {
+    order: 3;
+    width: 100%;
+  }
+  
+  /* Inline add forms */
+  .inline-add {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .inline-add input,
+  .inline-add button {
+    width: 100%;
+  }
+  
+  /* Timeline adjustments */
+  .timeline {
+    padding-left: 16px;
+  }
+  .timeline-item::before {
+    left: -16px;
+    width: 6px;
+    height: 6px;
+  }
+  .timeline-item::after {
+    left: -14.5px;
+  }
+  
+  /* Chip group - scrollable */
+  .chip-group {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+  .chip {
+    white-space: nowrap;
+    flex: none;
+  }
+}
+
+@media (max-width: 400px) {
+  /* Extra small devices */
+  html, body {
+    font-size: 14px;
+  }
+  .stat .value { font-size: 18px; }
+  .stat .label { font-size: 11.5px; }
+  .topbar .wordmark { font-size: 20px; }
+  .ledger-row {
+    grid-template-columns: 24px 1fr 70px;
+    padding: 8px 6px;
+  }
+}
+
 /* ─── Tabs ───────────────────────────────────────────────────── */
 
 .tabs {
