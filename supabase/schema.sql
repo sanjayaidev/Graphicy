@@ -132,3 +132,17 @@ create table if not exists ga_whatsapp_numbers (
 );
 create unique index if not exists ga_whatsapp_numbers_number_idx on ga_whatsapp_numbers (number);
 alter table ga_whatsapp_numbers enable row level security;
+
+-- ── Notes (Notes tab) ──────────────────────────────────────────────────
+-- See supabase/notes.sql for full design notes. Included here too so a
+-- fresh install only has to run this one file.
+create table if not exists ga_notes (
+  id         uuid primary key default gen_random_uuid(),
+  text       text not null,
+  status     text not null default 'Open', -- Open / In Progress / Done
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists ga_notes_status_idx     on ga_notes(status);
+create index if not exists ga_notes_created_at_idx on ga_notes(created_at);
+alter table ga_notes enable row level security;

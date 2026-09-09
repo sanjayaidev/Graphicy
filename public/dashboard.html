@@ -21,6 +21,7 @@
     <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
     <button class="tab-btn" data-tab="clients">Clients</button>
     <button class="tab-btn" data-tab="tasks">Tasks</button>
+    <button class="tab-btn" data-tab="notes">Notes</button>
     <button class="tab-btn" data-tab="status">Status</button>
     <button class="tab-btn" data-tab="bulk">Bulk</button>
     <button class="tab-btn" data-tab="earnings">Earnings</button>
@@ -89,6 +90,12 @@
         <option value="Pending">Pending</option>
         <option value="Done">Done</option>
       </select>
+      <select id="t-filter-payment">
+        <option value="">All payment status</option>
+        <option value="Paid">Paid</option>
+        <option value="Pending">Pending</option>
+        <option value="Overdue">Overdue</option>
+      </select>
       <div class="date-range">
         <label class="inline-label">Due from <input type="date" id="t-from"></label>
         <label class="inline-label">to <input type="date" id="t-to"></label>
@@ -103,6 +110,33 @@
       </div>
       <div id="tasks-body"><div class="loading">Loading tasks…</div></div>
     </div>
+
+  </section>
+
+  <!-- ═══════════════════ NOTES TAB ═══════════════════ -->
+  <section class="tab-panel" id="tab-notes" hidden>
+
+    <div class="toolbar">
+      <div class="inline-add" style="flex:1;">
+        <input id="n-new-text" placeholder="Write a note…" style="flex:1;">
+        <select id="n-new-status" style="max-width:130px;">
+          <option>Open</option><option>In Progress</option><option>Done</option>
+        </select>
+        <button class="primary" id="n-add-btn">Add note</button>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <select id="n-filter-status">
+        <option value="">All status</option>
+        <option value="Open">Open</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Done">Done</option>
+      </select>
+      <div class="spacer"></div>
+    </div>
+
+    <div class="card-list" id="notes-list"><div class="loading">Loading notes…</div></div>
 
   </section>
 

@@ -12,6 +12,7 @@ const paymentRoutes = require('./routes/payments');
 const followupRoutes = require('./routes/followups');
 const shareRoutes = require('./routes/share');
 const whatsappRoutes = require('./routes/whatsapp');
+const notesRoutes = require('./routes/notes');
 
 const app = express();
 
@@ -31,6 +32,7 @@ app.use('/api/tasks', requireAuth, taskRoutes);
 app.use('/api/payments', requireAuth, paymentRoutes);
 app.use('/api/followups', requireAuth, followupRoutes);
 app.use('/api/whatsapp', requireAuth, whatsappRoutes);
+app.use('/api/notes', requireAuth, notesRoutes);
 
 // Static frontend
 app.use(express.static(path.join(__dirname, 'public')));

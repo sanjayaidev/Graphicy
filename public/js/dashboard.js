@@ -4,6 +4,7 @@ let allClients = [];
 let allTasks = [];
 let allPayments = [];
 let allFollowups = [];
+let allNotes = [];
 let editingId = null;        // client being edited in the client modal
 let currentDetailId = null;  // client currently open in the detail modal
 let calViewDate = new Date(); // month currently shown on the Calendar tab (day is irrelevant, only Y/M used)
@@ -79,9 +80,16 @@ async function loadFollowups() {
   allFollowups = Array.isArray(data) ? data : [];
 }
 
+async function loadNotes() {
+  const res = await fetch('/api/notes');
+  if (res.status === 401) { window.location.href = '/login.html'; return; }
+  const data = await res.json();
+  allNotes = Array.isArray(data) ? data : [];
+}
+
 async function loadAll() {
   try {
-    await Promise.all([loadClients(), loadTasks(), loadPayments(), loadFollowups()]);
+    await Promise.all([loadClients(), loadTasks(), loadPayments(), loadFollowups(), loadNotes()]);
   } catch (err) {
     console.error('Failed to load data:', err);
   }
@@ -89,6 +97,7 @@ async function loadAll() {
   renderDashboard();
   renderClients();
   renderTasks();
+  renderNotes();
   renderStatus();
   renderBulk();
   renderEarnings();
@@ -96,11 +105,12 @@ async function loadAll() {
 }
 
 async function refreshAfterChange() {
-  await Promise.all([loadClients(), loadTasks(), loadPayments(), loadFollowups()]);
+  await Promise.all([loadClients(), loadTasks(), loadPayments(), loadFollowups(), loadNotes()]);
   populateClientSelects();
   renderDashboard();
   renderClients();
   renderTasks();
+  renderNotes();
   renderStatus();
   renderBulk();
   renderEarnings();
@@ -481,6 +491,7 @@ function populateClientSelects() {
 function getFilteredTasks() {
   const clientFilter = document.getElementById('t-filter-client').value;
   const statusFilter = document.getElementById('t-filter-status').value;
+  const paymentFilter = document.getElementById('t-filter-payment').value;
   const fromVal = document.getElementById('t-from').value;
   const toVal = document.getElementById('t-to').value;
   const from = fromVal ? new Date(fromVal) : null;
@@ -489,6 +500,7 @@ function getFilteredTasks() {
   return allTasks.filter(t => {
     if (clientFilter && String(t.ClientID) !== String(clientFilter)) return false;
     if (statusFilter && (t.Status || 'Pending') !== statusFilter) return false;
+    if (paymentFilter && (t.PaymentStatus || 'Pending') !== paymentFilter) return false;
     if ((from || to) && !inRange(t.DueDate, from, to)) return false;
     return true;
   });
@@ -562,6 +574,7 @@ async function setTaskDueDate(taskId, dueDate) {
 
 document.getElementById('t-filter-client').addEventListener('change', renderTasks);
 document.getElementById('t-filter-status').addEventListener('change', renderTasks);
+document.getElementById('t-filter-payment').addEventListener('change', renderTasks);
 document.getElementById('t-from').addEventListener('change', renderTasks);
 document.getElementById('t-to').addEventListener('change', renderTasks);
 
@@ -614,6 +627,91 @@ async function toggleTaskStatus(taskId, makeDone) {
 async function deleteTaskGlobal(taskId) {
   if (!confirm('Delete this task?')) return;
   await fetch(`/api/tasks/${encodeURIComponent(taskId)}`, { method: 'DELETE' });
+  await refreshAfterChange();
+}
+
+// ─── Notes tab ───────────────────────────────────────────────────────────
+
+function noteCardHtml(n) {
+  const statusClass = (n.Status || 'open').toLowerCase().replace(/\s+/g, '-');
+  return `
+    <div class="client-card">
+      <div class="card-top">
+        <div class="card-top-text">
+          <div class="sub" style="white-space:pre-wrap;">${escapeHtml(n.Text || '')}</div>
+        </div>
+        <select class="tag-select ${statusClass}" onchange="setNoteStatus('${n.NoteID}', this.value)">
+          ${['Open', 'In Progress', 'Done'].map(s => `<option value="${s}" ${s === (n.Status || 'Open') ? 'selected' : ''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div class="card-bottom">
+        <span class="ink-faint" style="font-size:12.5px;">${escapeHtml(formatDate(n.CreatedAt, true))}</span>
+        <div class="row-actions">
+          <button class="danger small" onclick="deleteNote('${n.NoteID}')">&times;</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function getFilteredNotes() {
+  const statusFilter = document.getElementById('n-filter-status').value;
+  return allNotes.filter(n => !statusFilter || (n.Status || 'Open') === statusFilter);
+}
+
+function renderNotes() {
+  const list = getFilteredNotes();
+  const body = document.getElementById('notes-list');
+  if (!list.length) {
+    body.innerHTML = `<div class="empty-state">
+      <h3>${allNotes.length === 0 ? 'No notes yet' : 'Nothing matches'}</h3>
+      <p>${allNotes.length === 0 ? 'Add a note above to start keeping track.' : 'Try a different filter.'}</p>
+    </div>`;
+    return;
+  }
+  body.innerHTML = list.map(noteCardHtml).join('');
+}
+
+document.getElementById('n-filter-status').addEventListener('change', renderNotes);
+
+document.getElementById('n-add-btn').addEventListener('click', async () => {
+  const textEl = document.getElementById('n-new-text');
+  const text = textEl.value.trim();
+  if (!text) return;
+  const status = document.getElementById('n-new-status').value;
+
+  const res = await fetch('/api/notes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, status }),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    alert(data.error || 'Failed to add note.');
+    return;
+  }
+
+  textEl.value = '';
+  document.getElementById('n-new-status').value = 'Open';
+  await refreshAfterChange();
+});
+
+document.getElementById('n-new-text').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) document.getElementById('n-add-btn').click();
+});
+
+async function setNoteStatus(noteId, status) {
+  await fetch(`/api/notes/${encodeURIComponent(noteId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  });
+  await refreshAfterChange();
+}
+
+async function deleteNote(noteId) {
+  if (!confirm('Delete this note?')) return;
+  await fetch(`/api/notes/${encodeURIComponent(noteId)}`, { method: 'DELETE' });
   await refreshAfterChange();
 }
 

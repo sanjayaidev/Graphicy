@@ -327,6 +327,9 @@ label {
 .tag-select.paid { background-color: var(--warm-soft); color: var(--warm); }
 .tag-select.pending { background-color: #FEF3C7; color: var(--signal); }
 .tag-select.overdue { background-color: var(--danger-soft); color: var(--danger); }
+.tag-select.open { background-color: var(--accent-soft); color: var(--accent); }
+.tag-select.in-progress { background-color: #FEF3C7; color: var(--signal); }
+.tag-select.done { background-color: var(--warm-soft); color: var(--warm); }
 
 .mini-amount {
   width: 74px;
