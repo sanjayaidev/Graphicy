@@ -331,6 +331,29 @@ label {
 .tag-select.in-progress { background-color: #FEF3C7; color: var(--signal); }
 .tag-select.done { background-color: var(--warm-soft); color: var(--warm); }
 
+/* ─── Notes tab cards ───────────────────────────────────────── */
+
+.note-card { cursor: default; }
+.note-card:hover { transform: none; box-shadow: var(--shadow-sm); border-color: var(--line); }
+.note-text {
+  color: var(--ink);
+  font-size: 14.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.note-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.note-meta .row-actions { margin-left: auto; opacity: 1; }
+.note-status-select {
+  width: auto;
+  flex: none;
+}
+
 .mini-amount {
   width: 74px;
   padding: 4px 8px;

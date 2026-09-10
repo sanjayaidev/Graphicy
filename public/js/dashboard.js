@@ -635,16 +635,12 @@ async function deleteTaskGlobal(taskId) {
 function noteCardHtml(n) {
   const statusClass = (n.Status || 'open').toLowerCase().replace(/\s+/g, '-');
   return `
-    <div class="client-card">
-      <div class="card-top">
-        <div class="card-top-text">
-          <div class="sub" style="white-space:pre-wrap;">${escapeHtml(n.Text || '')}</div>
-        </div>
-        <select class="tag-select ${statusClass}" onchange="setNoteStatus('${n.NoteID}', this.value)">
+    <div class="client-card note-card">
+      <div class="note-text">${escapeHtml(n.Text || '')}</div>
+      <div class="note-meta">
+        <select class="tag-select note-status-select ${statusClass}" onchange="setNoteStatus('${n.NoteID}', this.value)">
           ${['Open', 'In Progress', 'Done'].map(s => `<option value="${s}" ${s === (n.Status || 'Open') ? 'selected' : ''}>${s}</option>`).join('')}
         </select>
-      </div>
-      <div class="card-bottom">
         <span class="ink-faint" style="font-size:12.5px;">${escapeHtml(formatDate(n.CreatedAt, true))}</span>
         <div class="row-actions">
           <button class="danger small" onclick="deleteNote('${n.NoteID}')">&times;</button>
